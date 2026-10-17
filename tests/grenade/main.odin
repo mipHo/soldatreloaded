@@ -3,9 +3,9 @@ package grenade
 // Frag grenades that strike a soldier: the part struck is the circle its path crossed into
 // first (grenade_circle), and it goes off on that circle's edge, 8 pixels from its point,
 // so the blast's formula, damage / (distance + 1) times the part's modifier, is the same
-// for the same part every time. The modifiers are the game's own (frag_modifier), whatever
-// the weapons say: first in a leg's circle, all of 1505 / 9 = 167, a kill; in any other,
-// 0.63 of that, 105, which no one at full health dies of.
+// for the same part every time. The modifiers are the weapons' (a weapons mod's, where it
+// sets them); by default, first in a leg's circle, all of 1505 / 9 = 167, a kill; in any
+// other, 0.63 of that, 105, which no one at full health dies of.
 //
 // Each throw is a fresh soldier at full health, standing, crouching, lying, or in the air
 // above the thrower, struck by a grenade put in flight just short of a pose point: at
@@ -29,10 +29,8 @@ import res "../../core/resources"
 
 MAP :: "ctf_Ash"
 
-FRAG_UPPER :: f32(0.63) // the chest's and the head's: FRAG_UPPER_MODIFIER
-
-// The weapons played by: GatherWM's, the servers', and Soldat's own; the strike is the
-// game's whatever their modifiers.
+// The weapons played by: GatherWM's, the servers', and Soldat's own, each with the frag's
+// default modifiers.
 Table :: struct {
 	name:    string,
 	weapons: res.Weapon_Table,
@@ -84,7 +82,7 @@ main :: proc() {
 		fmt.println("\nFAIL")
 		os.exit(1)
 	}
-	fmt.println("\nevery direct hit took 167 first in a leg circle and killed, or 105 in any other and killed no one, whatever the weapons' modifiers")
+	fmt.println("\nevery direct hit took 167 first in a leg circle and killed, or 105 in any other and killed no one, at the frag's default modifiers")
 }
 
 // A soldier falling onto a grenade thrown straight up at its feet: the grenade put just
@@ -173,8 +171,8 @@ play :: proc(table: Table, filter: string, verbose: bool) -> bool {
 	rng := game.Rng{7}
 	spawn := game.spawn_point(&g.polymap, .Alpha, &rng)
 	stats := &g.resources.weapons[.Frag_Grenade].stats
-	feet := stats.damage / 9 // the blast's formula from the edge of the circle met, 8 away
-	body := stats.damage * FRAG_UPPER / 9
+	feet := stats.damage * stats.leg_modifier / 9 // the blast's formula from the edge of the circle met, 8 away
+	body := stats.damage * stats.chest_modifier / 9 // the head's the same, by default
 
 	ok := true
 	fmt.printfln("\n%s weapons: a leg circle first %.1f, any other %.1f", table.name, feet, body)
