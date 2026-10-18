@@ -206,6 +206,96 @@ Sound_Settings :: struct {
 	volume:            i32 `jsoncomment:"0 to 100"`,
 	battle_effects:    bool `jsoncomment:"a far shot or blast also plays its distant sound"`,
 	explosion_effects: bool `jsoncomment:"a blast next to you rings your ears and muffles the rest for a few seconds"`,
+	levels:            Sound_Levels `jsoncomment:"each kind of sound's own volume, 0 to 200 percent of the volume above: 100 as the game has it, 0 none"`,
+}
+
+// The kinds of sound a player sets the loudness of, each its own (Sound_Levels): each gun's
+// shots, reload and draw, and the game's events. In Sound_Levels' order.
+Sound_Group :: enum {
+	Desert_Eagles,
+	MP5,
+	AK74,
+	Steyr_AUG,
+	Spas12,
+	Ruger77,
+	M79,
+	Barrett,
+	Minimi,
+	Minigun,
+	USSOCOM,
+	Knife,
+	Chainsaw,
+	LAW,
+	Grenades,
+	Explosions,
+	Distant_Battle,
+	Hits,
+	Headshots,
+	Deaths,
+	Ricochets,
+	Spawns,
+	Flags,
+	Pickups,
+	Gun_Handling,
+	Movement,
+	Jets,
+	World,
+	Antics,
+	Radio,
+	Clock,
+	Menus,
+}
+
+// A field each, in Sound_Group's order, which sound_levels reads them by.
+Sound_Levels :: struct {
+	desert_eagles:  i32 `jsoncomment:"the Desert Eagles: their shots and reload"`,
+	mp5:            i32 `jsoncomment:"the HK MP5"`,
+	ak74:           i32 `jsoncomment:"the AK-74"`,
+	steyr_aug:      i32 `jsoncomment:"the Steyr AUG"`,
+	spas12:         i32 `jsoncomment:"the Spas-12"`,
+	ruger77:        i32 `jsoncomment:"the Ruger 77"`,
+	m79:            i32 `jsoncomment:"the M79's shots and reload; its blasts are explosions"`,
+	barrett:        i32 `jsoncomment:"the Barrett M82A1"`,
+	minimi:         i32 `jsoncomment:"the FN Minimi"`,
+	minigun:        i32 `jsoncomment:"the Minigun, its spin up and down too"`,
+	ussocom:        i32 `jsoncomment:"the USSOCOM, drawn too"`,
+	knife:          i32 `jsoncomment:"the combat knife, drawn and slashing"`,
+	chainsaw:       i32 `jsoncomment:"the chainsaw"`,
+	law:            i32 `jsoncomment:"the LAW, its charging too"`,
+	grenades:       i32 `jsoncomment:"grenades pulled out, thrown and bouncing"`,
+	explosions:     i32 `jsoncomment:"grenades' and the M79's and the LAW's blasts"`,
+	distant_battle: i32 `jsoncomment:"far shots and blasts, with distant battle sounds on"`,
+	hits:           i32 `jsoncomment:"a bullet into a soldier, living or dead"`,
+	headshots:      i32 `jsoncomment:"a headshot, a head chopped off"`,
+	deaths:         i32 `jsoncomment:"the dying, and the bodies falling"`,
+	ricochets:      i32 `jsoncomment:"bullets off the map, whizzing past, a thrown gun striking"`,
+	spawns:         i32 `jsoncomment:"a soldier placed, and your own spawn's tune"`,
+	flags:          i32 `jsoncomment:"the flags grabbed, captured, returned and fluttering"`,
+	pickups:        i32 `jsoncomment:"a gun, a medikit or a grenade kit taken, kits landing"`,
+	gun_handling:   i32 `jsoncomment:"changing and throwing guns, shells and clips falling, the scope"`,
+	movement:       i32 `jsoncomment:"steps, jumps, crouching, going prone, rolls, landings"`,
+	jets:           i32 `jsoncomment:"the jets"`,
+	world:          i32 `jsoncomment:"the map's: the wind, lava, hurting and healing polygons, fire"`,
+	antics:         i32 `jsoncomment:"an idle soldier's smoking, roaring and the rest"`,
+	radio:          i32 `jsoncomment:"the radio's calls"`,
+	clock:          i32 `jsoncomment:"the round's clock beeping"`,
+	menus:          i32 `jsoncomment:"the menus' clicks"`,
+}
+
+#assert(size_of(Sound_Levels) == size_of([Sound_Group]i32))
+
+// The levels by group, percent.
+sound_levels :: proc(levels: ^Sound_Levels) -> ^[Sound_Group]i32 {
+	return (^[Sound_Group]i32)(levels)
+}
+
+// Every sound as the game has it.
+SOUND_LEVELS_DEFAULT :: Sound_Levels {
+	desert_eagles = 100, mp5 = 100, ak74 = 100, steyr_aug = 100, spas12 = 100, ruger77 = 100, m79 = 100, barrett = 100,
+	minimi = 100, minigun = 100, ussocom = 100, knife = 100, chainsaw = 100, law = 100, grenades = 100,
+	explosions = 100, distant_battle = 100, hits = 100, headshots = 100, deaths = 100, ricochets = 100, spawns = 100,
+	flags = 100, pickups = 100, gun_handling = 100, movement = 100, jets = 100, world = 100, antics = 100, radio = 100,
+	clock = 100, menus = 100,
 }
 
 Network_Settings :: struct {
@@ -307,7 +397,7 @@ DEFAULT_CLIENT_CONFIG := Client_Config {
 		console_lines   = 6,
 		discord         = true,
 	},
-	sound = {volume = 50},
+	sound = {volume = 50, levels = SOUND_LEVELS_DEFAULT},
 	network = {server = "127.0.0.1:23073", lobby = LOBBY_URL, mods_index = MODS_INDEX_URL, smooth = 100},
 	offline = {time_limit = 15, capture_limit = 10, respawn_time = 2, max_grenades = 2, aimbot_miss_chance = 5, bots = {difficulty = 100, chat = true}},
 	radio = {

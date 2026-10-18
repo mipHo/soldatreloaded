@@ -25,6 +25,7 @@ Sample :: struct {
 	sound:  rl.Sound,
 	frames: [][2]f32, // the bank's: a loop is fed from them
 	rate:   int,
+	group:  Maybe(res.Sound_Group), // the level it plays at (groups.odin); none, as it is
 }
 
 // A voice: a sample playing, through an alias of its own, or, a loop, a stream fed
@@ -64,6 +65,7 @@ sample_get :: proc(s: ^Sound, name: string) -> (Sample, bool) {
 	if sample, known := s.samples[name]; known do return sample, len(sample.frames) > 0
 	decoded := res.sounds_get(&s.bank, name)
 	sample := Sample{name = strings.clone(name), frames = decoded.frames, rate = decoded.sample_rate}
+	if group, grouped := sound_group(name); grouped do sample.group = group
 	if len(sample.frames) > 0 {
 		sample.sound = rl.LoadSoundFromWave({
 			frameCount = u32(len(sample.frames)),
@@ -120,7 +122,13 @@ play_at :: proc(s: ^Sound, name: string, at: utils.Vec2, distant := false) {
 	if !heard do return
 	sample, ok := sample_get(s, name)
 	if !ok do return
-	voice_start(s, voice_take(s), sample, gain, pan)
+	voice_start(s, voice_take(s), sample, gain * level(s, sample), pan)
+}
+
+// The player's level for the sample's group (Sound_Settings' levels), 1 for none.
+level :: proc(s: ^Sound, sample: Sample) -> f32 {
+	group, grouped := sample.group.?
+	return s.levels[group] if grouped else 1
 }
 
 // A soldier's reserved voice, or the wind's: refreshed while it plays, started with
@@ -134,6 +142,7 @@ reserved_play :: proc(s: ^Sound, r: ^Reserved, name: string, at: utils.Vec2) {
 		reserved_stop(s, r)
 		return
 	}
+	gain *= level(s, sample)
 	playing := reserved_playing(s, r) && !s.voices[r.voice - 1].paused
 	if !playing && !heard do return
 	if !playing {

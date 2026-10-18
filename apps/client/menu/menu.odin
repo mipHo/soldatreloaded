@@ -28,6 +28,7 @@ package menu
 //   controls.odin  the keys                           taunts.odin    the taunt editor
 //   binds.odin     the keys and the taunts as the config's binds
 //   options.odin   sound, mouse, interface, network   graphics.odin  the window, the world
+//   sounds.odin    each kind of sound's own volume
 //   loading.odin   the loading screen, before there is a menu
 //
 // Uses: ui, draw (the player's preview), hud (the pointer), demo (the listing), online (the
@@ -61,6 +62,7 @@ Page :: enum {
 	Controls,
 	Taunts,
 	Options,
+	Sounds,
 	Graphics,
 	Mods,
 }
@@ -93,7 +95,7 @@ Menu :: struct {
 // The pages the menu shows over a game: the settings that take effect while it plays.
 // The player's name and look are said to a server as it is joined, and a mod is loaded
 // with the game, so neither is among them.
-IN_GAME_PAGES :: bit_set[Page]{.Controls, .Taunts, .Options, .Graphics}
+IN_GAME_PAGES :: bit_set[Page]{.Controls, .Taunts, .Options, .Sounds, .Graphics}
 
 // What the menu asks of the client.
 Request :: union {
@@ -232,6 +234,7 @@ menu_draw :: proc(menu: ^Menu, u: ^ui.Ui) {
 	case .Controls: page_controls(menu)
 	case .Taunts:   page_taunts(menu)
 	case .Options:  k.w = min(w, 520); page_options(menu)
+	case .Sounds:   k.w = min(w, 520); page_sounds(menu)
 	case .Graphics: k.w = min(w, 520); page_graphics(menu)
 	case .Mods:     k.w = min(w, 520); page_mods(menu)
 	}
@@ -280,6 +283,7 @@ PAGE_NAMES := [Page]string {
 	.Controls = "Controls",
 	.Taunts   = "Taunts",
 	.Options  = "Options",
+	.Sounds   = "Sounds",
 	.Graphics = "Graphics",
 	.Mods     = "Mods",
 }
@@ -293,6 +297,7 @@ PAGE_LINES := [Page]string {
 	.Controls = "The keys. Click a binding, then press the new key; Escape cancels.",
 	.Taunts   = "What a key says: a message to everyone or the team, or your own words as a radio call.",
 	.Options  = "Sound, the mouse, the interface and the connection.",
+	.Sounds   = "How loud each gun and each of the game's sounds is, over the volume.",
 	.Graphics = "The window, and what is drawn of the world.",
 	.Mods     = "How the game looks and sounds: mods over its own, stacked, the top one first.",
 }
@@ -304,6 +309,7 @@ PAGE_NOTES := #partial [Page]string {
 	.Controls = "Changes take effect at once, and are saved in client.config.mjson when the game closes.",
 	.Player   = "Changes take effect at once, and are saved in client.config.mjson when the game closes.",
 	.Options  = "Changes take effect at once, and are saved in client.config.mjson when the game closes.",
+	.Sounds   = "Changes take effect at once, and are saved in client.config.mjson when the game closes.",
 	.Graphics = "Changes take effect at once, and are saved in client.config.mjson when the game closes.",
 }
 
@@ -313,6 +319,7 @@ IN_GAME_NOTES := #partial [Page]string {
 	.Taunts   = "Saved in client.config.mjson as you go back to the game.",
 	.Controls = "Changes take effect at once, and are saved in client.config.mjson as you go back to the game.",
 	.Options  = "Changes take effect at once, and are saved in client.config.mjson as you go back to the game.",
+	.Sounds   = "Changes take effect at once, and are saved in client.config.mjson as you go back to the game.",
 	.Graphics = "Changes take effect at once, and are saved in client.config.mjson as you go back to the game.",
 }
 

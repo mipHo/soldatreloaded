@@ -11,6 +11,7 @@ package configs_test
 
 import "core:encoding/json"
 import "core:os"
+import "core:reflect"
 import "core:strings"
 import "core:testing"
 
@@ -361,4 +362,35 @@ default_volume :: proc(t: ^testing.T) {
 	kept := res.client_config_load(path)
 	defer res.client_config_destroy(kept)
 	testing.expect_value(t, kept.sound.volume, 18)
+}
+
+// Each kind of sound's own volume: a config without them has every sound as the game has
+// it; one that sets some keeps the rest at 100, and writes them all. The levels are read by
+// group in the struct's order, so its fields are Sound_Group's, one each, in order.
+@(test)
+sound_levels :: proc(t: ^testing.T) {
+	for field, i in reflect.struct_field_names(res.Sound_Levels) {
+		name, _ := reflect.enum_name_from_value(res.Sound_Group(i))
+		testing.expectf(t, field == strings.to_lower(name, context.temp_allocator), "field %d is %s, the group %s", i, field, name)
+	}
+	testing.expect_value(t, len(reflect.struct_field_names(res.Sound_Levels)), len(res.Sound_Group))
+
+	dir := scratch(t, "levels")
+	defer os.remove_all(dir)
+	path := utils.temp_path(dir, "client.config.mjson")
+	write(path, "sound: {volume: 40}\n")
+	config := res.client_config_load(path)
+	defer res.client_config_destroy(config)
+	for level, group in res.sound_levels(&config.sound.levels) do testing.expectf(t, level == 100, "%v left out is 100", group)
+
+	write(path, "sound: {volume: 40, levels: {ak74: 150, menus: 0}}\n")
+	set := res.client_config_load(path)
+	defer res.client_config_destroy(set)
+	levels := res.sound_levels(&set.sound.levels)
+	testing.expect(t, levels[.AK74] == 150 && levels[.Menus] == 0 && levels[.Spawns] == 100, "the ones set, and the rest at 100")
+	testing.expect(t, res.client_config_save(set, path), "written")
+	again := res.client_config_load(path)
+	defer res.client_config_destroy(again)
+	testing.expect(t, again.sound.levels == set.sound.levels, "and read back the same")
+	testing.expect(t, strings.contains(read(path), "spawns: 100"), "every one written")
 }

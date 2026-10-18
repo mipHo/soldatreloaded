@@ -51,6 +51,7 @@ Sound :: struct {
 	voices:     [MAX_VOICES]Voice,
 	plays:      u32,     // the plays so far, numbering each: the oldest is stolen first
 	volume:     f32,     // 0 to 1, every gain's
+	levels:     [res.Sound_Group]f32, // each group's own over it, 0 to 2 (groups.odin)
 	battle:     bool,    // battle_effects: a far shot or blast also plays its distant sample
 	explosions: bool,    // explosion_effects: a blast next to me rings the ears
 	weather:    bool,    // the map's weather is shown, and its wind heard
@@ -75,6 +76,7 @@ sound_init :: proc(s: ^Sound, mod: res.Mod) {
 		samples = make(map[string]Sample),
 		rng     = {0x9E3779B1},
 	}
+	for &level in s.levels do level = 1 // as the game has them, till configured
 	if !s.ready do log.warn("no audio device: the game is silent")
 	rl.SetAudioStreamBufferSizeDefault(LOOP_CHUNK) // the loops' streams, fed a chunk at a time
 }
@@ -106,10 +108,13 @@ sound_destroy :: proc(s: ^Sound) {
 
 // The settings, which may change at any time: the volume (0 to 100) through the
 // original's curve (ScaleVolumeSetting: 50 is an eighth of the way up, and 100 the whole
-// of it), the effects, and whether the weather, and so its wind, is on.
+// of it), each kind of sound's own level over it (0 to 200 percent, a loop's heard at
+// once, a one-shot's from its next play), the effects, and whether the weather, and so
+// its wind, is on.
 sound_configure :: proc(s: ^Sound, config: ^res.Client_Config) {
 	v := f32(clamp(config.sound.volume, 0, 100))
 	s.volume = (math.pow(f32(1.0404), v) - 1) / (1.0404 - 1) / 1275
+	for percent, group in res.sound_levels(&config.sound.levels) do s.levels[group] = f32(clamp(percent, 0, 200)) / 100
 	s.battle = config.sound.battle_effects
 	s.explosions = config.sound.explosion_effects
 	s.weather = config.graphics.weather
