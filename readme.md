@@ -20,7 +20,9 @@ Now that the game is in a decent state, with most issues fixed, a refactor is du
 - **The dedicated server** hosts games over the network, with bots, votes, admin
   commands, bans and mutes, a listing in the server browser and Lua scripts.
 - **The client** has its main menu, Offline Play against bots, and online play: the
-  server browser, joining by address, the chat, votes, the radio and spectating, with
+  server browser, joining by address or by a link
+  (`soldatreloaded://join/host:port[/password]`, which a release's game makes its own as
+  it starts, on Windows and Linux), the chat, votes, the radio and spectating, with
   the HUD, sound and the full look of the game. Games are recorded as demos and played
   back.
 - **Releases** are built and published by tagging (docs/git.md), each package with a

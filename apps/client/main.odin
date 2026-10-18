@@ -27,6 +27,7 @@ package main
 import "core:fmt"
 import "core:log"
 import "core:mem/virtual"
+import "core:os"
 import "core:strings"
 import "core:time"
 
@@ -86,6 +87,13 @@ Screen :: union {
 main :: proc() {
 	context.logger = log.create_console_logger(.Info, {.Level, .Time})
 
+	// started by a join link clicked (online/link.odin): wherever the system started it,
+	// the game runs from its install, where data/ and its config are
+	link, linked := link_arg()
+	if linked {
+		if dir, err := os.get_executable_directory(context.temp_allocator); err == nil do os.set_working_directory(dir)
+	}
+
 	client: Client
 	client.config = res.client_config_load(CONFIG_PATH, OLD_CONFIG_PATH)
 	client.mod = res.mod_make(res.MODS_DIR, client.config.graphics.mods)
@@ -98,6 +106,16 @@ main :: proc() {
 		step.run(&client)
 	}
 	screenshots_collect() // any left where the game runs, from before
+	// a release's game is the system's for join links, from wherever it is installed now;
+	// a build from the source leaves them to the release
+	if menu.VERSION != "dev" && !online.link_register() do log.warn("join links won't open the game: it couldn't be made their handler")
+	if linked {
+		if target, ok := online.link_target(link); ok {
+			connect(&client, target)
+		} else {
+			log.warnf("not a join link the game takes: %s", link)
+		}
+	}
 
 	for client.screen != nil && !rl.WindowShouldClose() {
 		window_follow(&client.window, &client.config.graphics)
@@ -133,6 +151,13 @@ main :: proc() {
 
 // ---------------------------------------------------------------------------------
 // Starting
+
+// The join link the game was started with, as its argument; none for a start of any other
+// kind.
+link_arg :: proc() -> (link: string, ok: bool) {
+	for arg in os.args[1:] do if online.link_is(arg) do return arg, true
+	return
+}
 
 // What starting takes once the window is open, in order: the steps slow enough to be
 // waited on, each shown on the loading screen as it runs.
