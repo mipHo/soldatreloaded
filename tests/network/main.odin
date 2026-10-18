@@ -447,6 +447,103 @@ streams :: proc(t: ^testing.T) {
 			bot_client.body.pos.x, bot_server.body.pos.x, corpse_blend))
 }
 
+// A round's placings, as a client with a long round trip sees them: the snapshot places
+// everyone before the server's word of it comes. Each placing is shown once, where the
+// snapshot made it, and the word, come late, neither shows it again nor puts the soldier
+// back at its spawn, which it has left.
+@(test)
+placing_shown_once :: proc(t: ^testing.T) {
+	server := make_game(true)
+	client := make_game(false)
+	defer {
+		game.game_destroy(server)
+		game.game_destroy(client)
+		free(server)
+		free(client)
+	}
+	game.soldier_place(server, 0, .Alpha, remote = true)
+	game.soldier_place(server, 1, .Bravo, remote = false)
+	run(server, 1, {})
+	placings := server.output // the words of the placings, held back for now
+	placed_at := server.world.tick - 1
+	spawn := server.world.soldiers[0].body.pos
+
+	words, none: net.Wire_Queue
+	net.wire_queue_init(&words)
+	net.wire_queue_init(&none)
+	streams := new([game.MAX_PLAYERS]net.Server_Stream)
+	defer free(streams)
+	net.server_stream_init(&streams[0], 1)
+	names: [game.MAX_PLAYERS]net.Name
+	client_stream: net.Client_Stream
+	net.client_stream_init(&client_stream)
+	defer net.client_stream_destroy(&client_stream)
+	net.client_stream_reset(&client_stream, 1)
+
+	shown: [2]int
+	buf: [net.MTU]u8
+	me := &client.world.soldiers[0]
+	walked: f32
+	for tick in 0 ..< 40 {
+		late := tick == 30
+		if late do walked = me.body.pos.x
+		if late do net.wire_collect(&words, &placings, placed_at, nil)
+		snapshot := net.server_stream_snapshot(&streams[0], server, 0, &words if tick >= 30 else &none, &names, buf[:])
+		testing.expect(t, net.client_stream_hear(&client_stream, client, 0, snapshot), "the client reads it")
+		net.client_stream_begin_tick(&client_stream, client, 0, 0)
+		run(client, 1, {.Right})
+		run(server, 1, {})
+		if tick >= 20 { // my states, which the server's deltas build on: room for its words
+			state := net.client_stream_state(&client_stream, me, buf[:])
+			net.server_stream_receive(&streams[0], server, 0, state, &words)
+		}
+		for ruling in sa.slice(&client.output.rulings) {
+			if respawn, is_respawn := ruling.(game.Respawn); is_respawn && respawn.target <= 1 do shown[respawn.target] += 1
+		}
+		if late do testing.expect(t, client_stream.pending.applied != 0, "the late word was heard")
+	}
+	testing.expect(t, me.active && me.vitals.life == 1, "I was placed")
+	testing.expect_value(t, shown, [2]int{1, 1})
+	testing.expectf(t, walked - spawn.x > 5 && me.body.pos.x > walked, "I walk on from where I had walked to, not from the spawn (%.1f, then %.1f, from it)", walked - spawn.x, me.body.pos.x - spawn.x)
+}
+
+// A snapshot with everyone in it whole (a join, a new round), too much for one datagram:
+// the server's words go in it, the farthest soldiers held back for them, so the round's
+// placings come with the soldiers they place and not a round trip after.
+@(test)
+words_before_far_soldiers :: proc(t: ^testing.T) {
+	server := make_game(true)
+	defer {game.game_destroy(server); free(server)}
+	for i in 0 ..< game.MAX_PLAYERS do game.soldier_place(server, game.Soldier_Id(i), .Alpha if i % 2 == 0 else .Bravo, remote = i == 0)
+	run(server, 30, {.Right, .Jet})
+	for i in 0 ..< game.MAX_PLAYERS do game.world_ask_kill(&server.world, game.Soldier_Id(i), false)
+	run(server, 1, {})
+
+	words: net.Wire_Queue
+	net.wire_queue_init(&words)
+	net.wire_collect(&words, &server.output, server.world.tick - 1, nil)
+	testing.expect(t, words.next - words.first >= net.STREAM_WORDS_KEPT, "the deaths are words to send")
+	streams := new([game.MAX_PLAYERS]net.Server_Stream)
+	defer free(streams)
+	net.server_stream_init(&streams[0], 1)
+	names: [game.MAX_PLAYERS]net.Name
+	for &name in names do name = utils.short_string(24, "A player with a long name")
+	buf: [net.MTU]u8
+	snapshot := net.server_stream_snapshot(&streams[0], server, 0, &words, &names, buf[:])
+	testing.expect(t, snapshot != nil, "a snapshot fits")
+
+	client := make_game(false)
+	defer {game.game_destroy(client); free(client)}
+	client_stream: net.Client_Stream
+	net.client_stream_init(&client_stream)
+	defer net.client_stream_destroy(&client_stream)
+	net.client_stream_reset(&client_stream, 1)
+	testing.expect(t, net.client_stream_hear(&client_stream, client, 0, snapshot), "the client reads it")
+	held := 0
+	for &frame in client_stream.snaps do for word in frame.word do held += int(word == .Same)
+	testing.expect(t, held > 0, "someone was held back: everyone whole doesn't fit")
+	testing.expectf(t, client_stream.pending.received >= net.STREAM_WORDS_KEPT, "the words came with them (%d)", client_stream.pending.received)
+}
 
 // The grenades are the server's count, as OpenSoldat's: the owner's word, sent before it
 // heard of the kit that filled them, doesn't empty them again (which let one player take

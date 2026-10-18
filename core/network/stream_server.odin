@@ -39,6 +39,8 @@ Gun_Given :: struct {
 
 GUN_GIVEN_HOLD :: game.TICK_RATE
 
+STREAM_WORDS_KEPT :: 8 // words a snapshot keeps while there is a soldier or a thing to hold back instead
+
 // What the server's end has seen of the line, counted: none of it steers the stream.
 Server_Stream_Stats :: struct {
 	dropped:    u32, // client states that couldn't be read, or failed a check
@@ -189,9 +191,13 @@ server_stream_snapshot :: proc(s: ^Server_Stream, g: ^game.Game, slot: game.Sold
 		m.things[i] = thing
 	}
 
-	// until it fits: fewer words first (they go next time regardless), then the farthest
-	// soldier or thing held back, never the receiver's own soldier; what is held back goes
-	// next time, whole if need be
+	// until it fits: fewer words first (they go next time regardless), down to a few,
+	// then the farthest soldier or thing held back, never the receiver's own soldier, and
+	// the last words only when nothing is left to hold back; what is held back goes next
+	// time, whole if need be. A whole snapshot, every one until the client has one to
+	// build on (a join, a new round), may not fit with everyone in it: the words went
+	// first then, and the round's placings and the deaths came a round trip after the
+	// soldiers they were about.
 	here := w.soldiers[slot].body.pos
 	event_max := WIRE_PER_PACKET
 	for {
@@ -207,7 +213,7 @@ server_stream_snapshot :: proc(s: ^Server_Stream, g: ^game.Game, slot: game.Sold
 			s.stats.unwritable += 1
 			return nil
 		}
-		if event_max > 0 {
+		if event_max > STREAM_WORDS_KEPT {
 			event_max /= 2
 			continue
 		}
@@ -226,9 +232,10 @@ server_stream_snapshot :: proc(s: ^Server_Stream, g: ^game.Game, slot: game.Sold
 			}
 		}
 		switch {
-		case thing >= 0:   m.thing_word[thing] = .Same
-		case soldier >= 0: m.word[soldier] = .Same
-		case:              return nil // not even alone
+		case thing >= 0:    m.thing_word[thing] = .Same
+		case soldier >= 0:  m.word[soldier] = .Same
+		case event_max > 0: event_max /= 2
+		case:               return nil // not even alone
 		}
 	}
 }

@@ -117,6 +117,27 @@ thing_apply :: proc(t: ^game.Thing, heard: ^game.Thing) {
 	}
 }
 
+// A new life heard of in a snapshot before the server's word of it: begun as the word
+// begins one, so all of the life that is never on the wire starts fresh, where the heard
+// soldier stands, and told at the next step as the word is told, for the flash and the
+// sound (a spectator's isn't, as the server doesn't). The word, when it comes, finds it
+// made and does nothing (word.odin).
+@(private = "file")
+life_begin :: proc(g: ^game.Game, id: game.Soldier_Id, heard: ^game.Soldier) {
+	respawn := game.Respawn {
+		target    = id,
+		life      = heard.vitals.life,
+		team      = heard.team,
+		primary   = heard.arsenal.primary.weapon,
+		secondary = heard.arsenal.secondary.weapon,
+		pos       = heard.body.pos,
+	}
+	game.apply_ruling(&g.world, &g.resources, respawn)
+	if heard.active && heard.team != .Spectator && !heard.vitals.dead && sa.space(g.world.placed) > 0 {
+		sa.push_back(&g.world.placed, respawn)
+	}
+}
+
 // A snapshot heard: read against its base and kept, with its words, for the tick that
 // shows it. `me` is for the bink alone. False if dropped.
 client_stream_hear :: proc(c: ^Client_Stream, g: ^game.Game, me: game.Soldier_Id, data: []u8) -> bool {
@@ -218,6 +239,7 @@ frame_apply :: proc(c: ^Client_Stream, g: ^game.Game, me: game.Soldier_Id, frame
 			heard := &frame.soldiers[i]
 			placed := heard.vitals.life != s.vitals.life
 			look, typing, loadout := s.player.look, s.player.typing, s.loadout
+			if placed do life_begin(g, me, heard)
 			soldier_take_served(s, heard)
 			s.player.look = look
 			s.player.typing = typing
@@ -265,6 +287,7 @@ soldier_apply :: proc(c: ^Client_Stream, g: ^game.Game, id: game.Soldier_Id, fra
 	heard := &frame.soldiers[id]
 	placed := heard.vitals.life != s.vitals.life
 	before := s.body.pos
+	if placed do life_begin(g, id, heard)
 	soldier_take_served(s, heard)
 	s.remote = true
 	if heard.vitals.dead {

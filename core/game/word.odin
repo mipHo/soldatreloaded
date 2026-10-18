@@ -67,21 +67,16 @@ heard_apply :: proc(world: ^World, resources: ^Resources, authority: ^Authority,
 		// client's collection for the wire leaves rulings out, so none goes back
 		case Ruling:
 			if turn != ruling_turn(w) do continue
-			// a placing the snapshot has already made: the snapshot often comes before the
-			// word. Placed again, all the life's own is begun as the server began it (the
-			// randomness, and what is never on the wire), but the guns are kept: placed with
-			// the round's first loadout, the soldier lost the weapon picked since, to fists.
+			// a placing the snapshot has already made, and told (stream_client's
+			// life_begin): the snapshot often comes before the word, a round trip before it
+			// at a round's start, when the words wait on the whole snapshots. Done again, it
+			// put the soldier back at its spawn, which it had long left, and flashed it in
+			// again there.
 			respawn, is_respawn := w.(Respawn)
-			if !is_respawn || !placed_already(world, respawn) {
-				chosen := world.soldiers[respawn.target].loadout if is_respawn else {}
-				rule(world, resources, w, out)
-				if is_respawn do arm_chosen(world, resources, respawn, chosen, authority)
-				continue
-			}
-			soldier := &world.soldiers[respawn.target]
-			primary, secondary, loadout := soldier.arsenal.primary, soldier.arsenal.secondary, soldier.loadout
+			if is_respawn && placed_already(world, respawn) do continue
+			chosen := world.soldiers[respawn.target].loadout if is_respawn else {}
 			rule(world, resources, w, out)
-			soldier.arsenal.primary, soldier.arsenal.secondary, soldier.loadout = primary, secondary, loadout
+			if is_respawn do arm_chosen(world, resources, respawn, chosen, authority)
 		}
 	}
 	if turn == .Things do sa.clear(&world.heard)
