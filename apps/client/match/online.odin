@@ -38,7 +38,7 @@ Line_Seen :: struct {
 }
 
 // The round on the server's map: the world and its picture made anew for it, nobody in
-// it until the snapshots say, and the round's limit and weapons the server's. False if
+// it until the snapshots say, and the round's limit, clock and weapons the server's. False if
 // the map can't be loaded. The server's grenades before the round begins, which places
 // grenade kits only where there are grenades, and the guns it gives nobody, which the
 // weapons menu greys out.
@@ -55,6 +55,7 @@ world_make :: proc(match: ^Match) -> bool {
 	sim.clear_output(&game.output)
 	draw.sparks_init(&match.sparks) // the last round's go with it (ChangeMap)
 	online.line_weapons_apply(n, game)
+	online.line_clock_apply(n, game)
 	game.settings.capture_limit = n.limit
 	match.me = n.slot
 	art_reload(match)

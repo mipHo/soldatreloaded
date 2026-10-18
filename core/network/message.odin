@@ -10,7 +10,7 @@ import "../utils"
 // sent over and over, unreliably, a lost one replaced by the next; news goes once, in
 // order. The two streams' messages are stream.odin's.
 
-VERSION :: 14 // of the wire: a client of another can't join
+VERSION :: 15 // of the wire: a client of another can't join
 DEFAULT_PORT :: 23073
 
 Name :: utils.Short_String(24)     // a player's
@@ -149,6 +149,7 @@ Msg_Map :: struct {
 	guns_off: res.Weapon_Set,    // the guns the server gives nobody, for the weapons menu
 	hash:     [MAP_HASH_SIZE]u8, // the map's .pms, SHA-256: a copy with another isn't this map; zeros for any
 	art:      u8,                // its own art files, a Map_Art each to follow
+	time_left: u32,              // the round's clock as it stands, in ticks: the HUD's until the snapshots say
 }
 
 msg_map :: proc(b: ^Buffer, m: ^Msg_Map) {
@@ -162,6 +163,7 @@ msg_map :: proc(b: ^Buffer, m: ^Msg_Map) {
 	m.guns_off = transmute(res.Weapon_Set)off
 	for &byte in m.hash do net_u8(b, &byte)
 	net_u8(b, &m.art)
+	net_u32(b, &m.time_left)
 }
 
 // A map the client lacks comes from the server, its .pms and its own art, a file at a time

@@ -71,6 +71,7 @@ pump :: proc(s: ^Session) {
 			assert(game.game_init(s.game, game.DEFAULT_GAME_SETTINGS, authority = false))
 		}
 		assert(game.game_start_round(s.game, utils.short_string_text(&s.n.map_name), seed = 1, data_dir = s.n.map_dir))
+		online.line_clock_apply(&s.n, s.game) // as the match's world_make
 	}
 	if s.recorder != nil do demo.recorder_frame(s.recorder)
 	if s.game != nil && online.line_live(&s.n) {
@@ -145,6 +146,38 @@ join_and_play :: proc(t: ^testing.T) {
 	answered := until(s, proc(s: ^Session) -> bool {return online.line_take_map_reply(&s.n)})
 	testing.expect(t, answered, "the map window's question answered")
 	testing.expect(t, s.n.map_reply.count >= 1 && s.n.map_reply.map_name.length > 0, "with a map")
+}
+
+// The round's clock, on joining and at a restart, is the server's from the world's first
+// tick, before any snapshot: not the game's own fifteen minutes.
+@(test)
+clock_from_the_map :: proc(t: ^testing.T) {
+	s := new(Session)
+	defer free(s)
+	testing.expect(t, session_open(s))
+	defer session_close(s)
+	MINUTE :: 60 * game.TICK_RATE
+	s.sv.game.round.time_left = 7 * MINUTE // a round well under way, of a ten-minute limit
+	s.sv.game.settings.time_limit = 10 * MINUTE
+	made := until(s, proc(s: ^Session) -> bool {return s.game != nil})
+	testing.expect(t, made && s.n.stream.applied == 0, "the world made, no snapshot applied yet")
+	testing.expectf(t, made && s.game.round.time_left <= 7 * MINUTE && s.game.round.time_left > 7 * MINUTE - game.TICK_RATE,
+		"the joiner's clock is the round's as the Map told it: %d", s.game.round.time_left if made else 0)
+	testing.expect(t, until(s, joined))
+
+	server.server_change_map(s.sv, "ctf_Ash") // a restart: the next round, on a full clock
+	restarted := false
+	for _ in 0 ..< ROUNDS {
+		pump(s)
+		if ended, is_ended := &s.sv.game.round.phase.(game.Ended); is_ended do ended.countdown = min(ended.countdown, 2) // the scores stand a tick, not five seconds
+		if s.n.round == 2 && s.n.stream.applied == 0 && s.game.world.tick <= 1 {
+			restarted = true
+			break
+		}
+	}
+	testing.expect(t, restarted, "the round restarted, its world made before any snapshot")
+	testing.expectf(t, restarted && s.game.round.time_left > 10 * MINUTE - game.TICK_RATE,
+		"the restarted round's clock is the server's limit: %d", s.game.round.time_left)
 }
 
 // The server's ctf_Ash isn't the client's (one byte of its header differs), and it has
