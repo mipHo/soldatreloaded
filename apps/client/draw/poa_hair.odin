@@ -125,11 +125,15 @@ poa_hair_destroy :: proc(h: ^Poa_Hair) {
 // Invert precisely the POA editor's projection before simulating, so gravity,
 // anisotropic X scale and head-relative offsets retain the exported meaning.
 poa_attachment :: proc(head_direction, neck: [2]f32, dir: i32) -> hair.Attachment {
-	// Point 12 is a 0.1-unit direction marker in the live skeleton.
+	// Point 12 is a 0.1-unit direction marker in the live skeleton, but a corpse's is a
+	// ragdoll point 3 units from the neck: its direction alone, then, or the hair hung 30
+	// times that from a dead soldier and swung round the body as it tumbled.
 	// POA's head attachment is approximately 3 world units from the neck.
 	// The legacy dreadlock root (point 23, factor 50) is a different anchor;
 	// using it here lifts every imported hairstyle by two world units.
-	head := neck + (head_direction-neck)*30
+	up := head_direction-neck
+	if utils.length(up) < 1e-6 do up = {0, -1}
+	head := neck + utils.normalize(up)*3
 	x, z := -f64(head.x)*1.1/3/f64(dir), -f64(head.y)/3
 	dx, dz := -f64(head.x-neck.x)*1.1/3/f64(dir), -f64(head.y-neck.y)/3
 	return {x, z, math.atan2(dz, dx)-math.PI/2}
