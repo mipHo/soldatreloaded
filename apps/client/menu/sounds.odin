@@ -3,8 +3,9 @@ package menu
 import res "../../../core/resources"
 import "../ui"
 
-// Each kind of sound's own volume, over the Options page's (Sound_Settings' levels): every
-// gun's, then the game's events. From 0, none, to 200 percent; 100 as the game has it.
+// The Settings page's Sound tab: the volume and the sound's effects, then each kind of
+// sound's own volume over it (Sound_Settings' levels), every gun's, then the game's
+// events. From 0, none, to 200 percent; 100 as the game has it.
 
 @(private = "file", rodata)
 GROUP_NAMES := [res.Sound_Group]string {
@@ -42,9 +43,15 @@ GROUP_NAMES := [res.Sound_Group]string {
 	.Menus          = "Menu clicks",
 }
 
-page_sounds :: proc(menu: ^Menu) {
+tab_sound :: proc(menu: ^Menu) {
 	k := &menu.kit
-	levels := res.sound_levels(&menu.config.sound.levels)
+	config := menu.config
+	ui.section(k, "SOUND")
+	ui.slider(k, "Volume", &config.sound.volume, 0, 100, 5, "%d%%")
+	ui.toggle(k, "Distant battle sounds", &config.sound.battle_effects)
+	ui.toggle(k, "Deafening blasts", &config.sound.explosion_effects)
+	levels := res.sound_levels(&config.sound.levels)
+	ui.section(k, "EACH SOUND'S OWN VOLUME")
 	reset_row(menu)
 	ui.section(k, "WEAPONS")
 	for group in res.Sound_Group.Desert_Eagles ..= res.Sound_Group.Grenades do ui.slider(k, GROUP_NAMES[group], &levels[group], 0, 200, 10, "%d%%")

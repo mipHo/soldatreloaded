@@ -40,7 +40,7 @@ The blend constants and filenames are in `core/resources/air_animation.odin`. Th
 
 ## Settings
 
-Each player chooses, under Graphics → Soldiers' poses (`air_*` in `client.config.mjson`'s graphics), which of the new poses they see. Each kind is Fluid, the new clips (the default), or Soldat 1's own:
+Each player chooses, under Settings → Graphics → Soldiers' poses (`air_*` in `client.config.mjson`'s graphics), which of the new poses they see. Each kind is Fluid, the new clips (the default), or Soldat 1's own:
 
 | Setting | Covers | Soldat 1's is called |
 | --- | --- | --- |

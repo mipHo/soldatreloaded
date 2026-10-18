@@ -278,7 +278,7 @@ old_vsync_bind :: proc(t: ^testing.T) {
 
 // A config with keys that toggled the frame rate and the line's numbers or the player
 // names (F5 and F7, once the game's own, or a key of the player's) has them let go, as
-// those are the Options page's alone; the minimap's toggle stays.
+// those are the Settings page's alone; the minimap's toggle stays.
 @(test)
 old_setting_toggles :: proc(t: ^testing.T) {
 	dir := scratch(t, "toggles")

@@ -99,7 +99,7 @@ Match :: struct {
 	recorder:   demo.Recorder, // online: the game recorded
 	record:     Record_Asked,
 	request:    Request, // what a command asked of the client, handed over at the frame's end
-	settings:   bool, // the escape menu's Options chosen: the settings asked of the client at the frame's end
+	settings:   bool, // the escape menu's Settings chosen: the settings asked of the client at the frame's end
 	zone:       ^datetime.TZ_Region, // the local time zone, the HUD clock's; nil, and the clock is UTC
 }
 

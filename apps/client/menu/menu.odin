@@ -12,7 +12,7 @@ package menu
 // server, to play a demo or to ask the lobby for its servers again, and plays nothing
 // itself. It reads the line (how the joining goes) and the browser's list, to show them.
 //
-// Over a game (`in_game`, from the escape menu's Options) it is the settings alone that
+// Over a game (`in_game`, from the escape menu's Settings) it is the settings alone that
 // take effect while the game plays (IN_GAME_PAGES): no background but the game's, and
 // Back to game where Quit is, which Escape does too.
 //
@@ -24,11 +24,11 @@ package menu
 //   menu.odin      the menu, the rail, the header and footer, the background, the pages
 //   servers.odin   Online play: the server browser    join.odin      its address row
 //   offline.odin   Offline Play: the match, the bots, the rotation
-//   demos.odin     the demos recorded here            player.odin    name, look, loadout
-//   controls.odin  the keys                           taunts.odin    the taunt editor
+//   demos.odin     the demos recorded here            player.odin    Gostek: name, look, loadout
+//   controls.odin  Keybinds: the keys                 taunts.odin    the taunt editor
 //   binds.odin     the keys and the taunts as the config's binds
-//   options.odin   sound, mouse, interface, network   graphics.odin  the window, the world
-//   sounds.odin    each kind of sound's own volume
+//   settings.odin  Settings, its tabs: mouse, interface, network
+//   graphics.odin  its Graphics tab                   sounds.odin    its Sound tab
 //   loading.odin   the loading screen, before there is a menu
 //
 // Uses: ui, draw (the player's preview), hud (the pointer), demo (the listing), online (the
@@ -58,12 +58,10 @@ Page :: enum {
 	Servers,
 	Offline,
 	Demos,
-	Player,
-	Controls,
+	Player,   // Gostek
+	Controls, // Keybinds
+	Settings,
 	Taunts,
-	Options,
-	Sounds,
-	Graphics,
 	Mods,
 }
 
@@ -78,7 +76,7 @@ Menu :: struct {
 	side:         int, // the rail's item with the keys: the pages, then Quit
 	request:      Request, // what the last pass asked of the client
 	art:          hud.Art, // the pointer
-	preview:      draw.Preview, // the Player page's, loaded as it is first shown
+	preview:      draw.Preview, // the Gostek page's, loaded as it is first shown
 	previewed:    bool,
 	bar_x:        Maybe(f32), // where this pass's page wants its scrollbar; nil for the right of its column
 	weapon_names: [res.Weapon]string,
@@ -88,14 +86,14 @@ Menu :: struct {
 	demos:        Demos,
 	mods:         Mods,
 	taunts:       Taunt_Editor,
-	custom_size:  Custom_Size, // the Graphics page's resolution typed
+	custom_size:  Custom_Size, // the Graphics tab's resolution typed
 	in_game:      bool, // over a game: its settings alone (IN_GAME_PAGES), and Back to game
 }
 
 // The pages the menu shows over a game: the settings that take effect while it plays.
 // The player's name and look are said to a server as it is joined, and a mod is loaded
 // with the game, so neither is among them.
-IN_GAME_PAGES :: bit_set[Page]{.Controls, .Taunts, .Options, .Sounds, .Graphics}
+IN_GAME_PAGES :: bit_set[Page]{.Controls, .Settings, .Taunts}
 
 // What the menu asks of the client.
 Request :: union {
@@ -151,7 +149,7 @@ FIRST_MAP :: "ctf_Ash"
 // FIRST_MAP. It shows how the client's line `n` joins, and the `browser`'s list, which
 // it asks for anew as it opens, as the C client's does. The Mods page lists, and
 // installs from, the mods' `catalog`. `in_game`, it is the settings over a game, on its
-// Options page.
+// Settings page.
 menu_init :: proc(menu: ^Menu, config: ^res.Client_Config, mod: res.Mod, last_map: string, n: ^online.Line, browser: ^online.Browser, catalog: ^online.Catalog, in_game := false) {
 	menu.config = config
 	menu.line = n
@@ -165,7 +163,7 @@ menu_init :: proc(menu: ^Menu, config: ^res.Client_Config, mod: res.Mod, last_ma
 	for info, weapon in sim.weapons_default() do menu.weapon_names[weapon] = info.name
 	offline_init(&menu.offline, last_map)
 	menu.taunts.slot = -1
-	go_page(menu, .Options if in_game else .Servers)
+	go_page(menu, .Settings if in_game else .Servers)
 }
 
 menu_destroy :: proc(menu: ^Menu) {
@@ -182,7 +180,7 @@ menu_destroy :: proc(menu: ^Menu) {
 }
 
 // The mods worn changed (Use_Mod): what the menu draws of them loaded again, as it
-// stands; the Player page's soldier as that page is next shown.
+// stands; the Gostek page's soldier as that page is next shown.
 menu_mods_changed :: proc(menu: ^Menu, mod: res.Mod) {
 	menu.mod = mod
 	hud.art_destroy(&menu.art)
@@ -232,10 +230,8 @@ menu_draw :: proc(menu: ^Menu, u: ^ui.Ui) {
 	case .Demos:    page_demos(menu)
 	case .Player:   page_player(menu)
 	case .Controls: page_controls(menu)
+	case .Settings: k.w = min(w, 520); page_settings(menu)
 	case .Taunts:   page_taunts(menu)
-	case .Options:  k.w = min(w, 520); page_options(menu)
-	case .Sounds:   k.w = min(w, 520); page_sounds(menu)
-	case .Graphics: k.w = min(w, 520); page_graphics(menu)
 	case .Mods:     k.w = min(w, 520); page_mods(menu)
 	}
 	k.x, k.w = x, w
@@ -279,12 +275,10 @@ PAGE_NAMES := [Page]string {
 	.Servers  = "Online play",
 	.Offline  = "Offline play",
 	.Demos    = "Demos",
-	.Player   = "Player",
-	.Controls = "Controls",
+	.Player   = "Gostek",
+	.Controls = "Keybinds",
+	.Settings = "Settings",
 	.Taunts   = "Taunts",
-	.Options  = "Options",
-	.Sounds   = "Sounds",
-	.Graphics = "Graphics",
 	.Mods     = "Mods",
 }
 
@@ -295,10 +289,8 @@ PAGE_LINES := [Page]string {
 	.Demos    = "Games recorded here, to watch again.",
 	.Player   = "Your name, and how your soldier looks and what it carries.",
 	.Controls = "The keys. Click a binding, then press the new key; Escape cancels.",
+	.Settings = "What is drawn, the sound, the mouse, the interface and the connection.",
 	.Taunts   = "What a key says: a message to everyone or the team, or your own words as a radio call.",
-	.Options  = "Sound, the mouse, the interface and the connection.",
-	.Sounds   = "How loud each gun and each of the game's sounds is, over the volume.",
-	.Graphics = "The window, and what is drawn of the world.",
 	.Mods     = "How the game looks and sounds: mods over its own, stacked, the top one first.",
 }
 
@@ -308,9 +300,7 @@ PAGE_NOTES := #partial [Page]string {
 	.Taunts   = "Saved in client.config.mjson as the game closes.",
 	.Controls = "Changes take effect at once, and are saved in client.config.mjson when the game closes.",
 	.Player   = "Changes take effect at once, and are saved in client.config.mjson when the game closes.",
-	.Options  = "Changes take effect at once, and are saved in client.config.mjson when the game closes.",
-	.Sounds   = "Changes take effect at once, and are saved in client.config.mjson when the game closes.",
-	.Graphics = "Changes take effect at once, and are saved in client.config.mjson when the game closes.",
+	.Settings = "Changes take effect at once, and are saved in client.config.mjson when the game closes.",
 }
 
 // And over a game, which saves the config as it is gone back to.
@@ -318,9 +308,7 @@ PAGE_NOTES := #partial [Page]string {
 IN_GAME_NOTES := #partial [Page]string {
 	.Taunts   = "Saved in client.config.mjson as you go back to the game.",
 	.Controls = "Changes take effect at once, and are saved in client.config.mjson as you go back to the game.",
-	.Options  = "Changes take effect at once, and are saved in client.config.mjson as you go back to the game.",
-	.Sounds   = "Changes take effect at once, and are saved in client.config.mjson as you go back to the game.",
-	.Graphics = "Changes take effect at once, and are saved in client.config.mjson as you go back to the game.",
+	.Settings = "Changes take effect at once, and are saved in client.config.mjson as you go back to the game.",
 }
 
 // The footer's line: what the page says of where it stands.
@@ -454,7 +442,7 @@ rail :: proc(menu: ^Menu) {
 		name:        string,
 		first, last: Page,
 	}
-	groups := [?]Group{{"PLAY", .Servers, .Demos}, {"SETTINGS", .Player, .Mods}}
+	groups := [?]Group{{"PLAY", .Servers, .Demos}, {"CUSTOMIZE", .Player, .Mods}}
 	pages := rail_pages(menu)
 	for group in groups {
 		shown := false

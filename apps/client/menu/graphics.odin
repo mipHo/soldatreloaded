@@ -51,7 +51,7 @@ AIR_STYLE_NAMES := [?]string{"Fluid", "Classic"}
 @(private = "file", rodata)
 FALL_STYLE_NAMES := [?]string{"Fluid", "Ballerina"}
 
-page_graphics :: proc(menu: ^Menu) {
+tab_graphics :: proc(menu: ^Menu) {
 	k := &menu.kit
 	graphics := &menu.config.graphics
 	ui.section(k, "DISPLAY")
@@ -145,7 +145,7 @@ resolution_name :: proc(size: [2]i32) -> string {
 	return fmt.tprintf("%d x %d", size.x, size.y)
 }
 
-// The Graphics page's resolution of the player's own: typed ("2560 x 1080"), and taken
+// The Graphics tab's resolution of the player's own: typed ("2560 x 1080"), and taken
 // as Enter or Apply is pressed, not as each key is, since the window follows it at once.
 Custom_Size :: struct {
 	open:    bool,

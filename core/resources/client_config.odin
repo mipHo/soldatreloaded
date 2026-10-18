@@ -50,7 +50,7 @@ Player_Settings :: struct {
 	hair:             utils.Rgba `jsoncomment:"the hair's colour, RRGGBB"`,
 	jet:              utils.Rgba `jsoncomment:"the jet flame's colour, RRGGBB"`,
 	hair_style:       Hair_Style `jsoncomment:"army; the male's dreadlocks, punk, mr_t or normal; the waifu's fringe or bob; mullet, wolfcut, baldcut, afro or emo. The rat and the furry wear only army, dreadlocks, punk, mr_t, mullet or wolfcut. The kang wears only army."`,
-	hair_custom:      u8 `jsoncomment:"0 for a built-in hairstyle; otherwise the custom hair number shown in the Player page, loaded from gostek-gfx/poa-hair"`,
+	hair_custom:      u8 `jsoncomment:"0 for a built-in hairstyle; otherwise the custom hair number shown in the Gostek page, loaded from gostek-gfx/poa-hair"`,
 	head_style:       Head_Style `jsoncomment:"none; the male's helmet or hat; the waifu's own; or backwards_cap. The rat and the furry wear none."`,
 	eyewear:          Eyewear `jsoncomment:"none or sunglasses"`,
 	chain_style:      Chain_Style `jsoncomment:"none, dog_tags or gold_chain"`,
@@ -480,7 +480,7 @@ client_config_load :: proc(path: string, old_path := "") -> ^Client_Config {
 		unbound := vsync_unbound(config)
 		if unbound do log.infof("%s: vsync is the graphics menu's alone now, its key let go (F4 takes the screenshot)", path)
 		dropped_keys := settings_unbound(config)
-		if dropped_keys do log.infof("%s: the keys that toggled the frame rate or the player names let go: they are the Options page's", path)
+		if dropped_keys do log.infof("%s: the keys that toggled the frame rate or the player names let go: they are the Settings page's", path)
 		if from != path || carried || unbound || dropped_keys do client_config_save(config, path)
 		if dropped > 0 {
 			config.problem = fmt.aprintf("%d settings weren't understood and are at their defaults; the file as it was is %s.bak", dropped, from, allocator = arena)
@@ -547,7 +547,7 @@ vsync_unbound :: proc(config: ^Client_Config) -> (unbound: bool) {
 
 // The keys bound to toggle the frame rate and the line's numbers (`toggle ui_info`, F5
 // once a default) or the player names (`toggle ui_playernames`, F7), let go: they are
-// the Options page's settings, toggled by no key, and a stray press changed one that the
+// the Settings page's, toggled by no key, and a stray press changed one that the
 // config then kept. True if any were.
 @(private = "file")
 settings_unbound :: proc(config: ^Client_Config) -> bool {

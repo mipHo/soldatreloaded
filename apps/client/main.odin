@@ -9,7 +9,7 @@ package main
 // the sound, which a match plays into; the line to a server, which the menu opens and a
 // match plays on, polled here each frame; the server browser's list; and what Discord
 // shows I'm playing (online/discord.odin), pumped each frame. Over a match, the escape
-// menu's Options brings up the main menu's settings pages (settings_open), the match
+// menu's Settings brings up the main menu's settings pages (settings_open), the match
 // playing on under them.
 //
 //   menu    the main menu                        match   being in a game
@@ -60,7 +60,7 @@ Client :: struct {
 	line:          online.Line, // the line to a server, or a demo's
 	browser:       online.Browser, // the server browser's list
 	catalog:       online.Catalog, // the mods' catalogue, and the mod being installed from it
-	settings:      ^menu.Menu, // the settings over a match, while they are up (the escape menu's Options)
+	settings:      ^menu.Menu, // the settings over a match, while they are up (the escape menu's Settings)
 	last_map:      string, // Offline Play's last, which the menu offers again
 	discord:       online.Discord, // the pipe to the Discord app here
 	showing:       Maybe(Showing), // what Discord was last shown (discord_update), none before the first
