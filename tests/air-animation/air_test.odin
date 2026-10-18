@@ -76,13 +76,13 @@ jump_anticipation_replaces_only_early_jump_visuals :: proc(t: ^testing.T) {
 @(test)
 directions_and_speed :: proc(t: ^testing.T) {
 	w := res.air_weights({3,-3},1,true)
-	testing.expect(t,w[.Jet_Rise]==0.5 && w[.Jet_Forward]==0.5)
+	testing.expect(t,w[.Jet_Rise]==0.5 && w[.Jet_Forward_1]==0.5)
 	w = res.air_weights({3,-3},-1,true)
-	testing.expect(t,w[.Jet_Rise]==0.5 && w[.Jet_Backward]==0.5)
+	testing.expect(t,w[.Jet_Rise]==0.5 && w[.Jet_Backward_1]==0.5)
 	w = res.air_weights({0,3},1,true)
 	testing.expect(t,w[.Jet_Fall]==1)
 	w = res.air_weights({0.75,0},1,true)
-	testing.expect(t,w[.Jet_Forward]==0.25 && w[.Jet_Rise]==0.75)
+	testing.expect(t,w[.Jet_Forward_0]==0.1875 && w[.Jet_Forward_1]==0.0625 && w[.Jet_Rise]==0.75)
 	w = res.air_weights({},1,true)
 	testing.expect(t,w[.Jet_Rise]==1)
 	for velocity in ([3]f32{-1.5,0,1.5}) {
@@ -148,8 +148,8 @@ air_run_crossfades_into_jet_and_jump_fall :: proc(t: ^testing.T) {
 supplied_clips_and_fallback :: proc(t: ^testing.T) {
 	sources := [?]string{
 		#load("../../assets/data/anims/Jet_Rise.poa"),
-		#load("../../assets/data/anims/Jet_Backward.poa"),
-		#load("../../assets/data/anims/Jet_Forward.poa"),
+		#load("../../assets/data/anims/Jet_Backward_0.poa"),
+		#load("../../assets/data/anims/Jet_Forward_0.poa"),
 		#load("../../assets/data/anims/Jet_Fall.poa"),
 	}
 	for source in sources {
@@ -194,12 +194,12 @@ state_gates_and_gameplay_pose :: proc(t: ^testing.T) {
 horizontal_jet_over_airborne_run_states :: proc(t: ^testing.T) {
 	animations := new(res.Animations); defer free(animations)
 	clips := new(res.Air_Animations); defer free(clips)
-	clips[.Jet_Forward]=res.air_clip_parse(#load("../../assets/data/anims/Jet_Forward.poa"))
-	clips[.Jet_Backward]=res.air_clip_parse(#load("../../assets/data/anims/Jet_Backward.poa"))
+	clips[.Jet_Forward_1]=res.air_clip_parse(#load("../../assets/data/anims/Jet_Forward_1.poa"))
+	clips[.Jet_Backward_1]=res.air_clip_parse(#load("../../assets/data/anims/Jet_Backward_1.poa"))
 	for dir in ([2]i32{1,-1}) {
 		for backwards in ([2]bool{false,true}) {
 			soldier := sim.Soldier{active=true,body={direction=i8(dir),jet_fuel=100,velocity={f32(dir)*(-3 if backwards else 3),0}},controls={buttons={.Jet},aim={100,0}},pose={legs={id=.Run_Back if backwards else .Run,frame=1},body={id=.Stand,frame=1}}}
-			clip := &clips[.Jet_Backward if backwards else .Jet_Forward]
+			clip := &clips[.Jet_Backward_1 if backwards else .Jet_Forward_1]
 			expected := sim.soldier_pose(animations,&soldier,{},&clip.frames[0],&clip.frames[0])
 			actual := draw.visual_soldier_pose(animations,clips,&soldier,{},0)
 			testing.expectf(t,actual==expected,"horizontal jet uses supplied clip: facing %d backwards %v",dir,backwards)
@@ -229,7 +229,7 @@ intent_reversal_progression :: proc(t: ^testing.T) {
 			vertical := res.air_weights({-3*f32(intent),3},dir,true,intent,3)
 			testing.expect(t,vertical[zero]==0.5 && vertical[one]==0 && vertical[.Jet_Fall]==0.5)
 			released := res.air_weights({3,0},dir,true,0,3)
-			testing.expect(t,released[.Jet_Forward if dir==1 else .Jet_Backward]==1)
+			testing.expect(t,released[.Jet_Forward_1 if dir==1 else .Jet_Backward_1]==1)
 			testing.expect(t,res.air_weights({3,0},dir,false,intent,3)[.Jump_Hover]==1)
 		}
 	}
@@ -256,10 +256,9 @@ intent_clips_reach_renderer_and_legacy_fallback :: proc(t: ^testing.T) {
 			testing.expect(t,draw.visual_soldier_pose(animations,clips,&soldier,{},0)==expected)
 		}
 	}}
-	clips[.Jet_Backward]=clips[.Jet_Backward_1]
 	clips[.Jet_Backward_0]={}
 	frame,strength := res.air_sample(clips,res.air_weights({5,0},1,true,-1),0,{})
-	testing.expect(t,strength==1 && frame==clips[.Jet_Backward].frames[0])
+	testing.expect(t,strength==0 && frame==res.Animation_Frame{})
 }
 
 // The player's choice of clips: each kind set to Soldat 1's is drawn as Soldat 1 draws

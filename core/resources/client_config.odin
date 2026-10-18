@@ -128,6 +128,7 @@ Graphics_Settings :: struct {
 	air_rising:        Air_Style `jsoncomment:"a soldier rising or hanging in the air after a jump, without jets: classic or fluid"`,
 	air_falling:       Fall_Style `jsoncomment:"a soldier falling without jets: ballerina, Soldat 1's fall, or fluid"`,
 	air_jetting:       Air_Style `jsoncomment:"a soldier jetting, up, down, forward or back: classic or fluid"`,
+	air_recoil:        Air_Style `jsoncomment:"a shot's recoil, in the air and on the ground: classic, Soldat 1's recoil clips, or fluid, a short kick of the hands and elbows over the pose the soldier is in, prone shots too"`,
 	hitboxes:          bool `jsoncomment:"each soldier's hit circles drawn over it, the ones that decide whether a shot hits: green the legs', yellow the chest's, red the head's, as the original counts them; the dashed ring a grenade's, a pixel wider"`,
 	crosshair_color:   utils.Rgba `jsoncomment:"the aiming crosshair's colour, RRGGBB"`,
 	crosshair_size:    i32 `jsoncomment:"the aiming crosshair's size, percent"`,

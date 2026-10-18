@@ -5,9 +5,9 @@ import "core:strconv"
 import "../utils"
 
 // Optional cosmetic clips: never added to Animation_Id or the network state.
-Air_Clip_Id :: enum {Jet_Rise, Jet_Backward, Jet_Forward, Jet_Fall, Jump_Rise, Jump_Hover, Jump_Fall, Jet_Forward_0, Jet_Forward_1, Jet_Backward_0, Jet_Backward_1, Jump_Anticipation}
+Air_Clip_Id :: enum {Jet_Rise, Jet_Fall, Jump_Rise, Jump_Hover, Jump_Fall, Jet_Forward_0, Jet_Forward_1, Jet_Backward_0, Jet_Backward_1, Jump_Anticipation}
 AIR_CLIP_FILES := [Air_Clip_Id]string{
-	.Jet_Rise="Jet_Rise.poa", .Jet_Backward="Jet_Backward.poa", .Jet_Forward="Jet_Forward.poa", .Jet_Fall="Jet_Fall.poa",
+	.Jet_Rise="Jet_Rise.poa", .Jet_Fall="Jet_Fall.poa",
 	.Jump_Rise="Jump_Rise.poa", .Jump_Hover="Jump_Hover.poa", .Jump_Fall="Jump_Fall.poa",
 	.Jet_Forward_0="Jet_Forward_0.poa", .Jet_Forward_1="Jet_Forward_1.poa",
 	.Jet_Backward_0="Jet_Backward_0.poa", .Jet_Backward_1="Jet_Backward_1.poa",
@@ -36,10 +36,11 @@ Air_Styles :: struct {
 	wind_up, rising: Air_Style,
 	falling:         Fall_Style,
 	jetting:         Air_Style,
+	recoil:          Air_Style, // drawn on the ground too (draw.visual_soldier_pose)
 }
 
 air_styles_of :: proc(graphics: ^Graphics_Settings) -> Air_Styles {
-	return {wind_up = graphics.air_wind_up, rising = graphics.air_rising, falling = graphics.air_falling, jetting = graphics.air_jetting}
+	return {wind_up = graphics.air_wind_up, rising = graphics.air_rising, falling = graphics.air_falling, jetting = graphics.air_jetting, recoil = graphics.air_recoil}
 }
 
 // The weights of the clips the styles draw; the others' none.
@@ -48,7 +49,7 @@ air_weights_styled :: proc(weights: Air_Weights, styles: Air_Styles) -> (styled:
 	if styles.rising == .Classic do styled[.Jump_Rise], styled[.Jump_Hover] = 0, 0
 	if styles.falling == .Ballerina do styled[.Jump_Fall] = 0
 	if styles.jetting == .Classic {
-		for id in ([?]Air_Clip_Id{.Jet_Rise, .Jet_Backward, .Jet_Forward, .Jet_Fall, .Jet_Forward_0, .Jet_Forward_1, .Jet_Backward_0, .Jet_Backward_1}) do styled[id] = 0
+		for id in ([?]Air_Clip_Id{.Jet_Rise, .Jet_Fall, .Jet_Forward_0, .Jet_Forward_1, .Jet_Backward_0, .Jet_Backward_1}) do styled[id] = 0
 	}
 	return
 }
@@ -113,8 +114,13 @@ air_weights :: proc(velocity: utils.Vec2, direction: i32, jet: bool, intent: i32
 		x := velocity.x * f32(direction) / 3
 		y := velocity.y / 3
 		total := max(1, math.abs(x)+math.abs(y))
-		weights[.Jet_Forward] = max(0,x)/total
-		weights[.Jet_Backward] = max(0,-x)/total
+		// coasting, the intent pose and the full-speed pose as the speed has it
+		forward := max(0,x)/total
+		backward := max(0,-x)/total
+		weights[.Jet_Forward_0] = forward*(1-clamp(x,0,1))
+		weights[.Jet_Forward_1] = forward*clamp(x,0,1)
+		weights[.Jet_Backward_0] = backward*(1-clamp(-x,0,1))
+		weights[.Jet_Backward_1] = backward*clamp(-x,0,1)
 		weights[.Jet_Fall] = max(0,y)/total
 		weights[.Jet_Rise] = max(0,-y)/total + max(0,1-math.abs(x)-math.abs(y))
 	} else {
@@ -148,8 +154,10 @@ air_weights_tuned :: proc(velocity: utils.Vec2, direction: i32, jet: bool, inten
 		forward := max(0,x)/max(tune.jet_forward_speed,0.01)
 		backward := max(0,-x)/max(tune.jet_backward_speed,0.01)
 		total := max(1,forward+backward+rise+fall)
-		weights[.Jet_Forward] = forward/total
-		weights[.Jet_Backward] = backward/total
+		weights[.Jet_Forward_0] = forward/total*(1-clamp(forward,0,1))
+		weights[.Jet_Forward_1] = forward/total*clamp(forward,0,1)
+		weights[.Jet_Backward_0] = backward/total*(1-clamp(backward,0,1))
+		weights[.Jet_Backward_1] = backward/total*clamp(backward,0,1)
 		weights[.Jet_Rise] = (rise+max(0,1-forward-backward-rise-fall))/total
 		weights[.Jet_Fall] = fall/total
 	} else {
@@ -170,12 +178,6 @@ air_sample :: proc(clips: ^Air_Animations, weights: Air_Weights, tick: u32, fall
 	phase := f32(tick % 120)/120
 	for weight, id in weights {
 		clip := &clips[id]
-		if clip.count == 0 {
-			#partial switch id {
-			case .Jet_Forward_0, .Jet_Forward_1: clip = &clips[.Jet_Forward]
-			case .Jet_Backward_0, .Jet_Backward_1: clip = &clips[.Jet_Backward]
-			}
-		}
 		if weight <= 0 || clip.count == 0 do continue
 		cursor := phase*f32(clip.count)
 		a := int(cursor); b := (a+1)%clip.count; t := cursor-f32(a)
