@@ -10,8 +10,11 @@ package online
 // often. The browser's Discord has no pipe, so it sees none of this. Discord clears what
 // is shown when the pipe closes, as the game quits.
 //
-// The icon is the application's art asset named DISCORD_ICON, uploaded on Discord's
-// Developer Portal under the application's Rich Presence, Art Assets.
+// The icon is the game's own, by its address (DISCORD_ICON), which Discord fetches and
+// shows as it would an art asset of the application's: the application has none uploaded
+// on Discord's Developer Portal, and an asset's name it hasn't got shows nothing. Under
+// it, a button to the game's newest release, for whoever sees it (Discord shows a
+// player's buttons to the others, not to them).
 //
 // From the C client: net/discord.c.
 
@@ -24,7 +27,8 @@ import "core:unicode/utf8"
 import "../../../core/utils"
 
 DISCORD_APP_ID :: "1555217040036339732"
-DISCORD_ICON :: "logo"
+DISCORD_ICON :: "https://raw.githubusercontent.com/soldatreloaded/soldatreloaded/main/assets/data/icon.png"
+DISCORD_BUTTON :: `{"label":"Get Soldat Reloaded","url":"https://github.com/soldatreloaded/soldatreloaded/releases/latest"}`
 
 @(private = "file")
 RETRY_SECONDS :: 15 // with no app found, looked for again this often
@@ -47,9 +51,14 @@ Op :: enum u32 {
 Discord_Text :: utils.Short_String(128) // a line shown
 
 Discord_Activity :: struct {
-	details: Discord_Text, // the first line, empty for none
-	state:   Discord_Text, // the second, empty for none
-	since:   i64, // the time it began, Unix seconds, for the "elapsed"; 0 for none
+	details:    Discord_Text, // the first line, empty for none
+	state:      Discord_Text, // the second, empty for none
+	since:      i64, // the time it began, Unix seconds, for the "elapsed"; 0 for none
+	ends:       i64, // the time it ends, for the "left" in its place: the round's; 0 for none
+	party:      Discord_Text, // the game's own id, shared by all in it; empty for none
+	party_size: i32, // and the players in it, "(5 of 32)" after the state
+	party_max:  i32,
+	icon_text:  Discord_Text, // over the icon: the game and its version
 }
 
 Discord :: struct {
@@ -146,22 +155,39 @@ write_text :: proc(b: ^strings.Builder, s: string) {
 send_activity :: proc(d: ^Discord) -> bool {
 	@(static) nonce: u32
 	nonce += 1
+	return send_frame(d, .Frame, discord_activity_json(&d.want, nonce, process_id()))
+}
+
+// SET_ACTIVITY's frame for `want`, in the temp allocator.
+discord_activity_json :: proc(want: ^Discord_Activity, nonce: u32, pid: int) -> string {
 	b := strings.builder_make(context.temp_allocator)
-	fmt.sbprintf(&b, `{"cmd":"SET_ACTIVITY","nonce":"%d","args":{"pid":%d,"activity":{`, nonce, process_id())
+	fmt.sbprintf(&b, `{{"cmd":"SET_ACTIVITY","nonce":"%d","args":{{"pid":%d,"activity":{{`, nonce, pid)
 	// Discord refuses a line under two characters, so one so short goes unsaid
 	lines := [?]struct {
 		key:  string,
 		text: string,
-	}{{"details", utils.short_string_text(&d.want.details)}, {"state", utils.short_string_text(&d.want.state)}}
+	}{{"details", utils.short_string_text(&want.details)}, {"state", utils.short_string_text(&want.state)}}
 	for line in lines {
 		if len(line.text) < 2 do continue
 		fmt.sbprintf(&b, `"%s":"`, line.key)
 		write_text(&b, line.text)
 		strings.write_string(&b, `",`)
 	}
-	if d.want.since > 0 do fmt.sbprintf(&b, `"timestamps":{{"start":%d}},`, d.want.since)
-	strings.write_string(&b, `"assets":{"large_image":"` + DISCORD_ICON + `","large_text":"Soldat Reloaded"}}}}`)
-	return send_frame(d, .Frame, strings.to_string(b))
+	switch {
+	case want.ends > 0:  fmt.sbprintf(&b, `"timestamps":{{"end":%d}},`, want.ends)
+	case want.since > 0: fmt.sbprintf(&b, `"timestamps":{{"start":%d}},`, want.since)
+	}
+	if party := utils.short_string_text(&want.party); party != "" && want.party_max > 0 {
+		strings.write_string(&b, `"party":{"id":"`)
+		write_text(&b, party)
+		fmt.sbprintf(&b, `","size":[%d,%d]}},`, clamp(want.party_size, 1, want.party_max), want.party_max)
+	}
+	icon_text := utils.short_string_text(&want.icon_text)
+	if len(icon_text) < 2 do icon_text = "Soldat Reloaded"
+	strings.write_string(&b, `"assets":{"large_image":"` + DISCORD_ICON + `","large_text":"`)
+	write_text(&b, icon_text)
+	strings.write_string(&b, `"},"buttons":[` + DISCORD_BUTTON + `]}}}`)
+	return strings.to_string(b)
 }
 
 // A whole frame come back: the handshake's READY, an activity's answer, a ping, a close.

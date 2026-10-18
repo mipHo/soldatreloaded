@@ -388,8 +388,8 @@ tick_fraction :: proc(client: ^Client) -> f32 {
 // ---------------------------------------------------------------------------------
 // Discord
 
-// What Discord shows: the menu, Offline Play or a server's game with its map, or a demo;
-// the time counted from when that began, not from each map.
+// What Discord shows: the menus, or a match as match.discord_activity tells it; the time
+// counted from when that began, not from each map, but in a round the time it has left.
 discord_update :: proc(client: ^Client) {
 	showing := Showing.Menu
 	playing, is_match := client.screen.(^match.Match)
@@ -404,23 +404,17 @@ discord_update :: proc(client: ^Client) {
 		client.showing = showing
 		client.showing_since = time.time_to_unix(time.now())
 	}
-	a := online.Discord_Activity {
-		since = client.showing_since,
-	}
-	map_name := utils.short_string_text(&client.line.map_name)
-	switch showing {
-	case .Menu:
+	now := time.time_to_unix(time.now())
+	a: online.Discord_Activity
+	if is_match {
+		a = match.discord_activity(playing, now, client.showing_since, menu.VERSION_LABEL)
+		// the round's end as it was said, while it is where it was give or take the second
+		// the clock is between: not said again for that
+		if was := client.discord.want.ends; a.ends != 0 && was != 0 && abs(a.ends - was) <= 2 do a.ends = was
+	} else {
+		a = {since = client.showing_since}
 		utils.short_string_set(&a.details, "In the menus")
-	case .Offline:
-		utils.short_string_set(&a.details, fmt.tprintf("On %s", playing.map_name))
-		utils.short_string_set(&a.state, "Offline Play")
-	case .Online:
-		hostname := utils.short_string_text(&client.line.hostname)
-		utils.short_string_set(&a.details, fmt.tprintf("On %s", map_name))
-		utils.short_string_set(&a.state, hostname if hostname != "" else "Online")
-	case .Demo:
-		utils.short_string_set(&a.details, "Watching a demo")
-		utils.short_string_set(&a.state, fmt.tprintf("On %s", map_name))
+		utils.short_string_set(&a.icon_text, fmt.tprintf("Soldat Reloaded %s", menu.VERSION_LABEL))
 	}
 	online.discord_set(&client.discord, a)
 	online.discord_pump(&client.discord, rl.GetTime(), client.config.interface.discord)
