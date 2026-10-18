@@ -80,3 +80,12 @@ jobs:
             printf '[[actions]]\nname = "play"\npath = "soldatreloaded%s"\n' "$exe" > "$install/.itch.toml"
             butler push "$install" "$ITCH_GAME:$platform" --userversion "${TAG#v}"
           done
+
+      # What itch.io made of each channel's builds, a while after: processing, live, or
+      # failed and why.
+      - name: status
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+        run: |
+          sleep 60
+          butler status "$ITCH_GAME"
