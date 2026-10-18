@@ -255,7 +255,7 @@ feed_scroll :: proc(feed: ^Feed) {
 @(private = "file")
 kill_said :: proc(feed: ^Feed, world: ^sim.World, names: ^[sim.MAX_PLAYERS]string, kill: sim.Kill, me: sim.Soldier_Id) {
 	killer, victim := &world.soldiers[kill.killer], &world.soldiers[kill.target]
-	tallied := fmt.tprintf("%s (%d)", names[kill.killer], killer.tally.kills)
+	tallied := fmt.tprintf("%s (%d)", names[kill.killer], kill.kills) // the server's count, which the ruling carries
 	if kill.killer != kill.target {
 		kill_line(feed, tallied, killer_color(killer.team), kill.weapon, true)
 		kill_line(feed, names[kill.target], victim_color(victim.team), kill.weapon, false)

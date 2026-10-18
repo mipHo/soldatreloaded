@@ -396,11 +396,10 @@ soldier_kill :: proc(world: ^World, resources: ^Resources, kill: Kill) {
 	vitals.respawn_counter = kill.respawn
 
 	soldier.tally.deaths += 1
-	if kill.killer != kill.target {
-		world.soldiers[kill.killer].tally.kills += 1
-	} else if soldier.tally.kills > 0 {
-		soldier.tally.kills -= 1
-	}
+	// the killer's kills as the ruling counts them, one more or a suicide's one less: a
+	// client's tally, the snapshot's, may be a word behind or ahead, and counted on from
+	// there the feed said one kill's count twice, or skipped one
+	world.soldiers[kill.killer].tally.kills = kill.kills
 	things_ask(world, Let_Go{kill.target})
 }
 

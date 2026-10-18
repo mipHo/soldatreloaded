@@ -181,6 +181,9 @@ judge_hit :: proc(world: ^World, resources: ^Resources, hit: Hit, out: ^Tick_Out
 	case .M79:          if rng_below(&world.rng, 8) == 0 do fire = 2
 	case .Frag_Grenade: if rng_below(&world.rng, 12) == 0 do fire = 4
 	}
+	// the killer's tally with this kill, a suicide's one less (soldier_kill)
+	kills := world.soldiers[hit.shooter].tally.kills
+	kills = kills + 1 if hit.shooter != hit.target else max(kills - 1, 0)
 	rule(world, resources, Kill {
 		killer    = hit.shooter,
 		target    = hit.target,
@@ -193,5 +196,6 @@ judge_hit :: proc(world: ^World, resources: ^Resources, hit: Hit, out: ^Tick_Out
 		airtime   = hit.airtime,
 		ricochets = hit.ricochets,
 		respawn   = world.wave + world.rules.respawn_min_wave,
+		kills     = kills,
 	}, out)
 }

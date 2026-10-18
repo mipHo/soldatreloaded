@@ -242,7 +242,7 @@ words :: proc(t: ^testing.T) {
 		game.Shot_End{owner = 2, shot = 12, weapon = .Frag_Grenade, pos = {5, 6}, blast = .Frag},
 		game.Shot_End{owner = 2, shot = 13, weapon = .Thrown_Knife, pos = {5, 6}, blast = nil, target = 4},
 		game.Ruling(game.Damage{attacker = 1, target = 2, weapon = .AK74, amount = 12.5, part = 3}),
-		game.Ruling(game.Kill{killer = 1, target = 2, weapon = .Knife, pos = {7, 8}, part = 2, impact = {1, 1}, fire = 3, distance = 99, airtime = 30, ricochets = 1, respawn = 150}),
+		game.Ruling(game.Kill{killer = 1, target = 2, weapon = .Knife, pos = {7, 8}, part = 2, impact = {1, 1}, fire = 3, distance = 99, airtime = 30, ricochets = 1, respawn = 150, kills = 12}),
 		game.Ruling(game.Respawn{target = 4, life = 2, team = .Bravo, primary = .Spas12, secondary = .LAW, pos = {100, 200}}),
 		game.Ruling(game.Gun_Drop{owner = 1, weapon = .Minigun, ammo = 50, pos = {1, 1}}),
 		game.Ruling(game.Knife_Land{owner = 5, pos = {2, 2}}),

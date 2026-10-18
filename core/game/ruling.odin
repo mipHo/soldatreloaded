@@ -43,6 +43,7 @@ Kill :: struct {
 	airtime:   i32,
 	ricochets: u8,
 	respawn:   i32,        // ticks the dead waits: to its wave, as the server judged it
+	kills:     i32,        // the killer's kills with this one, as the server counts them: the kill feed's
 }
 
 // All a soldier's own client needs to begin the life too.
