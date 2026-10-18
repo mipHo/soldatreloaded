@@ -1,5 +1,6 @@
 package online
 
+import "core:fmt"
 import "core:strings"
 import "core:sync"
 import "core:thread"
@@ -104,6 +105,16 @@ browser_pump :: proc(b: ^Browser) {
 		b.state = .Done
 		network.query_socket_close(&b.socket)
 	}
+}
+
+// Whether the server at `address` (host:port, as connected to) is on the lobby's list and
+// asks no password: one anyone may be sent to, by a join link on a Discord profile.
+browser_open_to_all :: proc(b: ^Browser, address: string) -> bool {
+	for &server in b.servers[:b.count] {
+		if !server.answered || server.info.password do continue
+		if fmt.tprintf("%s:%d", utils.short_string_text(&server.address.ip), server.address.port) == address do return true
+	}
+	return false
 }
 
 browser_close :: proc(b: ^Browser) {

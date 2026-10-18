@@ -433,6 +433,11 @@ discord_update :: proc(client: ^Client) {
 	a: online.Discord_Activity
 	if is_match {
 		a = match.discord_activity(playing, now, client.showing_since, menu.VERSION_LABEL)
+		// a server on the lobby's list that asks no password: a Join game button to it
+		if playing.mode == .Online {
+			address := utils.short_string_text(&client.line.address)
+			if online.browser_open_to_all(&client.browser, address) do utils.short_string_set(&a.join, address)
+		}
 		// the round's end as it was said, while it is where it was give or take the second
 		// the clock is between: not said again for that
 		if was := client.discord.want.ends; a.ends != 0 && was != 0 && abs(a.ends - was) <= 2 do a.ends = was

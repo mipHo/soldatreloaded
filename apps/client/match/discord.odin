@@ -12,7 +12,9 @@ import "../online"
 // then where: the server's name and my team, Offline Play and its bots, or whose demo;
 // the players in a server's game, "(5 of 32)"; and while a round is played the time it
 // has left, counting down, else the time since `since`. The server's address is never
-// said: a profile is seen by more than the game's players, and a server may be private.
+// said here: a profile is seen by more than the game's players, and a server may be
+// private. Main adds it, as a Join game button, for one on the lobby's list that asks
+// no password, which anyone may see and join anyway.
 // `now` is the Unix second, `version` the game's.
 discord_activity :: proc(match: ^Match, now, since: i64, version: string) -> (a: online.Discord_Activity) {
 	game := match.game

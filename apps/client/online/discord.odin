@@ -13,8 +13,9 @@ package online
 // The icon is the game's own, by its address (DISCORD_ICON), which Discord fetches and
 // shows as it would an art asset of the application's: the application has none uploaded
 // on Discord's Developer Portal, and an asset's name it hasn't got shows nothing. Under
-// it, a button to the game's newest release, for whoever sees it (Discord shows a
-// player's buttons to the others, not to them).
+// it, a button to join the server played on, when it is one anyone may join, and one to
+// the game's newest release, for whoever sees them (Discord shows a player's buttons to
+// the others, not to them).
 //
 // From the C client: net/discord.c.
 
@@ -29,6 +30,10 @@ import "../../../core/utils"
 DISCORD_APP_ID :: "1555217040036339732"
 DISCORD_ICON :: "https://raw.githubusercontent.com/soldatreloaded/soldatreloaded/main/assets/data/icon.png"
 DISCORD_BUTTON :: `{"label":"Get Soldat Reloaded","url":"https://github.com/soldatreloaded/soldatreloaded/releases/latest"}`
+// A server's join link as Discord takes one, https alone: the page that opens the game's
+// own (soldatreloaded://join/..., link.odin) from there (the soldatreloaded.github.io
+// repository).
+DISCORD_JOIN_PAGE :: "https://soldatreloaded.github.io/join/?s="
 
 @(private = "file")
 RETRY_SECONDS :: 15 // with no app found, looked for again this often
@@ -59,6 +64,7 @@ Discord_Activity :: struct {
 	party_size: i32, // and the players in it, "(5 of 32)" after the state
 	party_max:  i32,
 	icon_text:  Discord_Text, // over the icon: the game and its version
+	join:       Discord_Text, // a server anyone may join, host:port, for a Join game button; empty for none
 }
 
 Discord :: struct {
@@ -186,7 +192,16 @@ discord_activity_json :: proc(want: ^Discord_Activity, nonce: u32, pid: int) -> 
 	if len(icon_text) < 2 do icon_text = "Soldat Reloaded"
 	strings.write_string(&b, `"assets":{"large_image":"` + DISCORD_ICON + `","large_text":"`)
 	write_text(&b, icon_text)
-	strings.write_string(&b, `"},"buttons":[` + DISCORD_BUTTON + `]}}}`)
+	strings.write_string(&b, `"},"buttons":[`)
+	// the server's join link first, but only of an address the game would take from one
+	if join := utils.short_string_text(&want.join); join != "" {
+		if _, ok := link_target(strings.concatenate({LINK_SCHEME + "://join/", join}, context.temp_allocator)); ok {
+			strings.write_string(&b, `{"label":"Join game","url":"` + DISCORD_JOIN_PAGE)
+			write_text(&b, join)
+			strings.write_string(&b, `"},`)
+		}
+	}
+	strings.write_string(&b, DISCORD_BUTTON + `]}}}`)
 	return strings.to_string(b)
 }
 

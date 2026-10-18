@@ -63,3 +63,33 @@ discord_shows_the_game :: proc(t: ^testing.T) {
 	ended := match.discord_activity(m, 1000, 500, "v0.24.0")
 	testing.expect(t, strings.has_suffix(utils.short_string_text(&ended.details), "Alpha wins"), "over: who won")
 }
+
+// A server anyone may join (on the lobby's list, asking no password) gets a Join game
+// button, by the join page's https link, first; anything else, the one button alone.
+@(test)
+discord_join_button :: proc(t: ^testing.T) {
+	b := new(online.Browser)
+	defer free(b)
+	b.count = 2
+	utils.short_string_set(&b.servers[0].address.ip, "149.248.193.40")
+	b.servers[0].address.port, b.servers[0].answered = 23073, true
+	utils.short_string_set(&b.servers[1].address.ip, "10.0.0.2")
+	b.servers[1].address.port, b.servers[1].answered = 23073, true
+	b.servers[1].info.password = true
+	testing.expect(t, online.browser_open_to_all(b, "149.248.193.40:23073"), "listed, open")
+	testing.expect(t, !online.browser_open_to_all(b, "10.0.0.2:23073"), "listed, but it asks a password")
+	testing.expect(t, !online.browser_open_to_all(b, "149.248.193.40:23074"), "not listed")
+
+	buttons :: proc(a: ^online.Discord_Activity) -> json.Array {
+		parsed, err := json.parse_string(online.discord_activity_json(a, 1, 1), allocator = context.temp_allocator)
+		assert(err == nil)
+		return parsed.(json.Object)["args"].(json.Object)["activity"].(json.Object)["buttons"].(json.Array)
+	}
+	a: online.Discord_Activity
+	utils.short_string_set(&a.join, "149.248.193.40:23073")
+	two := buttons(&a)
+	testing.expect_value(t, len(two), 2)
+	testing.expect_value(t, two[0].(json.Object)["url"].(json.String), "https://soldatreloaded.github.io/join/?s=149.248.193.40:23073")
+	utils.short_string_set(&a.join, `1.2.3.4:23073"},{"x":"`)
+	testing.expect_value(t, len(buttons(&a)), 1) // no address the game wouldn't take
+}
