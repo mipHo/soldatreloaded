@@ -3,7 +3,7 @@ package menu
 import "../ui"
 
 // The settings, a tab each: what is drawn (graphics.odin), the sound (sounds.odin), the
-// mouse and the pointers, the interface, the connection. The tab last looked at is the
+// mouse and the pointers, and the interface. The tab last looked at is the
 // one the page opens on, the game's menu or the one over a match, till the game closes.
 
 Settings_Tab :: enum {
@@ -11,7 +11,6 @@ Settings_Tab :: enum {
 	Sound,
 	Mouse,
 	Interface,
-	Network,
 }
 
 @(private = "file", rodata)
@@ -20,7 +19,6 @@ SETTINGS_TAB_NAMES := [len(Settings_Tab)]string { // by Settings_Tab
 	"Sound",
 	"Mouse",
 	"Interface",
-	"Network",
 }
 
 @(private = "file")
@@ -44,7 +42,6 @@ page_settings :: proc(menu: ^Menu) {
 	case .Sound:     tab_sound(menu)
 	case .Mouse:     tab_mouse(menu)
 	case .Interface: tab_interface(menu)
-	case .Network:   tab_network(menu)
 	}
 }
 
@@ -88,12 +85,4 @@ tab_interface :: proc(menu: ^Menu) {
 	if !config.graphics.screen_shake do ui.toggle(k, "Others' minigun fire shakes the screen", &config.graphics.minigun_shake) // with all of it on, the minigun's is in it
 	ui.section(k, "DISCORD")
 	ui.toggle(k, "Show on Discord", &config.interface.discord)
-}
-
-@(private = "file")
-tab_network :: proc(menu: ^Menu) {
-	k := &menu.kit
-	config := menu.config
-	ui.section(k, "NETWORK")
-	ui.slider(k, "Smoothing", &config.network.smooth, 0, 500, 25, "%d ms")
 }

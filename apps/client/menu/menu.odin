@@ -27,7 +27,7 @@ package menu
 //   demos.odin     the demos recorded here            player.odin    Gostek: name, look, loadout
 //   controls.odin  Keybinds: the keys                 taunts.odin    the taunt editor
 //   binds.odin     the keys and the taunts as the config's binds
-//   settings.odin  Settings, its tabs: mouse, interface, network
+//   settings.odin  Settings, its tabs: mouse, interface
 //   graphics.odin  its Graphics tab                   sounds.odin    its Sound tab
 //   loading.odin   the loading screen, before there is a menu
 //
@@ -289,7 +289,7 @@ PAGE_LINES := [Page]string {
 	.Demos    = "Games recorded here, to watch again.",
 	.Player   = "Your name, and how your soldier looks and what it carries.",
 	.Controls = "The keys. Click a binding, then press the new key; Escape cancels.",
-	.Settings = "What is drawn, the sound, the mouse, the interface and the connection.",
+	.Settings = "What is drawn, the sound, the mouse and the interface.",
 	.Taunts   = "What a key says: a message to everyone or the team, or your own words as a radio call.",
 	.Mods     = "How the game looks and sounds: mods over its own, stacked, the top one first.",
 }
