@@ -92,11 +92,12 @@ figure_between :: proc(animations: ^res.Animations, from, to: ^sim.Soldier, corp
 	clips: ^res.Air_Animations
 	transition: ^Air_Transition
 	tuning: ^res.Air_Tuning
-	if art != nil do clips, transition, tuning = art.air_animations, &art.air_transitions[id], &art.air_tuning
+	styles: res.Air_Styles
+	if art != nil do clips, transition, tuning, styles = art.air_animations, &art.air_transitions[id], &art.air_tuning, art.air_styles
 	base := sim.soldier_pose(animations, to, figure.pos)
-	joints := visual_soldier_pose(animations, clips, to, figure.pos, tick, transition, tuning)
+	joints := visual_soldier_pose(animations, clips, to, figure.pos, tick, transition, tuning, styles)
 	if continuous && from.vitals.dead == to.vitals.dead {
-		last := visual_soldier_pose(animations, clips, from, figure.pos, tick-1 if tick>0 else 0, transition, tuning)
+		last := visual_soldier_pose(animations, clips, from, figure.pos, tick-1 if tick>0 else 0, transition, tuning, styles)
 		last_base := sim.soldier_pose(animations, from, figure.pos)
 		for &point, i in base do point = between(last_base[i], point, alpha)
 		for &joint, i in joints {

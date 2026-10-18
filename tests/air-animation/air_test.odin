@@ -261,3 +261,30 @@ intent_clips_reach_renderer_and_legacy_fallback :: proc(t: ^testing.T) {
 	frame,strength := res.air_sample(clips,res.air_weights({5,0},1,true,-1),0,{})
 	testing.expect(t,strength==1 && frame==clips[.Jet_Backward].frames[0])
 }
+
+// The player's choice of clips: each kind set to Soldat 1's is drawn as Soldat 1 draws
+// it, whatever the others are set to, and the others still draw the new clips.
+@(test)
+styles_choose_the_clips :: proc(t: ^testing.T) {
+	clips := res.air_animations_load("assets/data"); defer free(clips)
+	animations := new(res.Animations); defer free(animations)
+	classic := res.Air_Styles{wind_up = .Classic, rising = .Classic, falling = .Ballerina, jetting = .Classic}
+	Case :: struct {name: string, soldier: sim.Soldier, own: res.Air_Styles}
+	cases := [?]Case{
+		{"falling", {active = true, body = {direction = 1, velocity = {0, 3}}, controls = {aim = {100, 0}}, pose = {legs = {id = .Fall, frame = 3}, body = {id = .Stand, frame = 1}}}, {falling = .Ballerina}},
+		{"rising", {active = true, body = {direction = 1, velocity = {0, -3}}, controls = {aim = {100, 0}}, pose = {legs = {id = .Jump, frame = 12}, body = {id = .Stand, frame = 1}}}, {rising = .Classic}},
+		{"jetting", {active = true, body = {direction = 1, velocity = {0, -2}, jet_fuel = 100}, controls = {aim = {100, 0}, buttons = {.Jet}}, pose = {legs = {id = .Fall, frame = 3}, body = {id = .Stand, frame = 1}}}, {jetting = .Classic}},
+		{"wind-up", {active = true, body = {direction = 1, on_ground = true}, controls = {aim = {100, 0}}, pose = {legs = {id = .Jump, frame = 4}, body = {id = .Stand, frame = 1}}}, {wind_up = .Classic}},
+	}
+	for &c in cases {
+		original := sim.soldier_pose(animations, &c.soldier, {})
+		testing.expectf(t, draw.visual_soldier_pose(animations, clips, &c.soldier, {}, 0) != original, "%s: the new clips are drawn by default", c.name)
+		testing.expectf(t, draw.visual_soldier_pose(animations, clips, &c.soldier, {}, 0, styles = c.own) == original, "%s: Soldat 1's, set to it alone", c.name)
+		testing.expectf(t, draw.visual_soldier_pose(animations, clips, &c.soldier, {}, 0, styles = classic) == original, "%s: Soldat 1's, every kind set to it", c.name)
+	}
+	// the others, set to Soldat 1's, leave a fall to its own setting
+	others := res.Air_Styles{wind_up = .Classic, rising = .Classic, jetting = .Classic}
+	testing.expect(t, draw.visual_soldier_pose(animations, clips, &cases[0].soldier, {}, 0, styles = others) != sim.soldier_pose(animations, &cases[0].soldier, {}), "a fluid fall, the rest classic")
+	weights := res.air_weights_styled(#partial res.Air_Weights{.Jump_Rise = 0.25, .Jump_Hover = 0.25, .Jump_Fall = 0.5}, {falling = .Ballerina})
+	testing.expect(t, weights[.Jump_Fall] == 0 && weights[.Jump_Rise] == 0.25 && weights[.Jump_Hover] == 0.25, "a ballerina fall takes the fall's clip alone away")
+}

@@ -45,6 +45,11 @@ MAX_FPS_HIGHEST :: 3000
 
 @(private = "file", rodata)
 SKY_NAMES := [?]string{"The map's", "My colours"}
+// In res.Air_Style's and res.Fall_Style's order: the new clips first, then Soldat 1's.
+@(private = "file", rodata)
+AIR_STYLE_NAMES := [?]string{"Fluid", "Classic"}
+@(private = "file", rodata)
+FALL_STYLE_NAMES := [?]string{"Fluid", "Ballerina"}
 
 page_graphics :: proc(menu: ^Menu) {
 	k := &menu.kit
@@ -84,6 +89,11 @@ page_graphics :: proc(menu: ^Menu) {
 	ui.toggle(k, "Show all players as the classic soldier", &graphics.original_soldiers) // every style drawn as the male
 	ui.toggle(k, "Render smooth polygons", &graphics.smooth_polygons) // no edge texture along their outsides
 	ui.toggle(k, "Show hitboxes", &graphics.hitboxes) // the circles that decide whether a shot hits
+	ui.section(k, "SOLDIERS IN THE AIR") // drawn alone: the hitboxes stay Soldat 1's
+	ui.enum_select(k, "Jump wind-up", &graphics.air_wind_up, AIR_STYLE_NAMES[:])
+	ui.enum_select(k, "Rising", &graphics.air_rising, AIR_STYLE_NAMES[:])
+	ui.enum_select(k, "Falling", &graphics.air_falling, FALL_STYLE_NAMES[:])
+	ui.enum_select(k, "Jetting", &graphics.air_jetting, AIR_STYLE_NAMES[:])
 	ui.section(k, "SKY")
 	if picked := ui.select_box(k, "Sky", SKY_NAMES[:], nil, 1 if graphics.force_sky else 0); picked >= 0 {
 		graphics.force_sky = picked == 1

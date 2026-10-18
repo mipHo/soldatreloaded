@@ -32,6 +32,7 @@ Art :: struct {
 	gostek:        Gostek_Art,
 	air_animations: ^res.Air_Animations,
 	air_tuning: res.Air_Tuning,
+	air_styles: res.Air_Styles, // which airborne clips the player draws, from the config each frame
 	air_transitions: [sim.MAX_PLAYERS]Air_Transition,
 	bullets:       Bullet_Art,
 	things:        Thing_Art,

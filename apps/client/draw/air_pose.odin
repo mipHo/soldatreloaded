@@ -65,14 +65,16 @@ air_transition_step :: proc(state: ^Air_Transition, soldier: ^sim.Soldier, tune:
 	}
 }
 
-visual_soldier_pose :: proc(animations: ^res.Animations, clips: ^res.Air_Animations, soldier: ^sim.Soldier, pos: utils.Vec2, tick: u32, state: ^Air_Transition = nil, tune: ^res.Air_Tuning = nil) -> sim.Joints {
+// `styles`, the player's choice of which clips to draw (Graphics_Settings' air_*): a clip
+// set to Soldat 1's leaves its share of the pose to Soldat 1's.
+visual_soldier_pose :: proc(animations: ^res.Animations, clips: ^res.Air_Animations, soldier: ^sim.Soldier, pos: utils.Vec2, tick: u32, state: ^Air_Transition = nil, tune: ^res.Air_Tuning = nil, styles := res.Air_Styles{}) -> sim.Joints {
 	if clips == nil || !soldier.active || soldier.vitals.dead || soldier.controls.stance != .Stand {
 		return sim.soldier_pose(animations, soldier, pos)
 	}
 	// The first nine legacy Jump ticks are the wind-up; keep the game state and
 	// impulse timing, but display the authored anticipation clip instead of skok.poa.
 	jet := .Jet in soldier.controls.buttons && soldier.body.jet_fuel > 0
-	if soldier.pose.legs.id == .Jump && soldier.pose.legs.frame >= 1 && soldier.pose.legs.frame <= 9 &&
+	if styles.wind_up == .Fluid && soldier.pose.legs.id == .Jump && soldier.pose.legs.frame >= 1 && soldier.pose.legs.frame <= 9 &&
 	   !jet && .Left not_in soldier.controls.buttons && .Right not_in soldier.controls.buttons {
 		clip := &clips[.Jump_Anticipation]
 		if clip.count > 0 {
@@ -105,6 +107,10 @@ visual_soldier_pose :: proc(animations: ^res.Animations, clips: ^res.Air_Animati
 	weights := res.air_weights(soldier.body.velocity, i32(soldier.body.direction), jet, intent, full_speed)
 	if tune != nil do weights = res.air_weights_tuned(soldier.body.velocity, i32(soldier.body.direction), jet, intent, tune^)
 	if state != nil && state.ready do weights = state.current
+	weights = res.air_weights_styled(weights, styles)
+	drawn: f32
+	for weight in weights do drawn += weight
+	if drawn <= 0 do return sim.soldier_pose(animations, soldier, pos) // every clip here Soldat 1's
 	old_legs := res.animation_frame(&animations[soldier.pose.legs.id], soldier.pose.legs.frame)
 	original_legs := old_legs^
 	if state != nil && state.legacy_source do original_legs = state.legacy_legs

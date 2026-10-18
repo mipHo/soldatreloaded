@@ -124,6 +124,10 @@ Graphics_Settings :: struct {
 	forced_sky_bottom: utils.Rgba `jsoncomment:"the forced sky's colour at the bottom, RRGGBB"`,
 	grenade_color:     Maybe(utils.Rgba) `jsoncomment:"the grenades in this colour, RRGGBB, flat and solid; empty for their own art"`,
 	original_soldiers: bool `jsoncomment:"every soldier drawn as Soldat 1's, the male, whatever style its player picked (the female, rat, furry or waifu), a waifu's hair and headgear as his nearest: so a mod made for Soldat 1 looks the same on everyone"`,
+	air_wind_up:       Air_Style `jsoncomment:"a jump's wind-up drawn as Soldat 1's (classic) or as the new airborne clips (fluid): what is drawn alone, the game's moves and hitboxes are Soldat 1's either way"`,
+	air_rising:        Air_Style `jsoncomment:"a soldier rising or hanging in the air after a jump, without jets: classic or fluid"`,
+	air_falling:       Fall_Style `jsoncomment:"a soldier falling without jets: ballerina, Soldat 1's fall, or fluid"`,
+	air_jetting:       Air_Style `jsoncomment:"a soldier jetting, up, down, forward or back: classic or fluid"`,
 	hitboxes:          bool `jsoncomment:"each soldier's hit circles drawn over it, the ones that decide whether a shot hits: green the legs', yellow the chest's, red the head's, as the original counts them; the dashed ring a grenade's, a pixel wider"`,
 	crosshair_color:   utils.Rgba `jsoncomment:"the aiming crosshair's colour, RRGGBB"`,
 	crosshair_size:    i32 `jsoncomment:"the aiming crosshair's size, percent"`,
@@ -132,6 +136,19 @@ Graphics_Settings :: struct {
 	track_shot:        bool `jsoncomment:"the camera follows a Barrett shot fired scoped, until you stand up"`,
 	screen_shake:      bool `jsoncomment:"others' shots in view shake the camera too, not only yours (cl_screenshake)"`,
 	minigun_shake:     bool `jsoncomment:"others' minigun shots in view shake the camera, though screen_shake is off: the hail of one coming is felt"`,
+}
+
+// How a soldier in the air is drawn (air_animation.odin): as Soldat 1 draws it, or with
+// the new airborne clips. The game plays Soldat 1's poses either way.
+Air_Style :: enum {
+	Fluid,
+	Classic,
+}
+
+// The fall's own: Soldat 1's, its legs crossed as a dancer's, or the new clip.
+Fall_Style :: enum {
+	Fluid,
+	Ballerina,
 }
 
 // How the world fits a screen past the original's shapes (draw.view_of).

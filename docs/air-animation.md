@@ -38,6 +38,19 @@ Airborne Run/Run Back blends into directional Jet or Jump Rise/Hover/Fall using 
 
 The blend constants and filenames are in `core/resources/air_animation.odin`. The gameplay POA loader's 40-frame limit is unchanged; these optional visual clips use their own strict 240-frame loader. These are point-pose blends, not a skeletal IK solver: extremes may shorten a limb as with other point interpolation.
 
+## Settings
+
+Each player chooses, under Graphics → Soldiers in the air (`air_*` in `client.config.mjson`'s graphics), which of the new poses they see. Each kind is Fluid, the new clips (the default), or Soldat 1's own:
+
+| Setting | Covers | Soldat 1's is called |
+| --- | --- | --- |
+| `air_wind_up` | Jump Anticipation | Classic |
+| `air_rising` | Jump Rise and Jump Hover | Classic |
+| `air_falling` | Jump Fall | Ballerina |
+| `air_jetting` | every Jet clip | Classic |
+
+A kind set to Soldat 1's leaves its share of a blend to the original pose, so the kinds mix freely: a Ballerina fall out of a Fluid rise crossfades between them. Like the clips themselves, the settings change only what this player sees: the game, its hitboxes and the other players' views are untouched.
+
 ## Checks
 
 `odin test tests/air-animation` covers directional weights, facing, speed influence, falling jets, anticipation, missing clips, partial fallback and state gating. The suite is included in CI. Legacy pendant and dread roots follow the visual head pose. The animation system uses no custom hair code or assets.

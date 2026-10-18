@@ -157,7 +157,7 @@ poa_hair_tick :: proc(art: ^Art, game: ^sim.Game, original := false) {
 		if !soldier.active || pkg == nil { p.ready = false; continue }
 		// the head as it is drawn, the airborne clips' over the game's (air_pose.odin), so
 		// the hair hangs from the head seen
-		joints := visual_soldier_pose(game.resources.animations, art.air_animations, &soldier, soldier.body.pos, game.world.tick, &art.air_transitions[id], &art.air_tuning)
+		joints := visual_soldier_pose(game.resources.animations, art.air_animations, &soldier, soldier.body.pos, game.world.tick, &art.air_transitions[id], &art.air_tuning, art.air_styles)
 		if corpse := &game.world.corpses[id]; soldier.vitals.dead && corpse.active {
 			copy(joints[:], corpse.points[:])
 		}

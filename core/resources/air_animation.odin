@@ -30,6 +30,29 @@ AIR_TUNING :: Air_Tuning{
 	jet_direction_blend=0.27, jump_jet_blend=0.22,
 }
 
+// Which of the clips the player draws: those set to Soldat 1's are left out, and
+// their share of the pose is Soldat 1's (air_sample).
+Air_Styles :: struct {
+	wind_up, rising: Air_Style,
+	falling:         Fall_Style,
+	jetting:         Air_Style,
+}
+
+air_styles_of :: proc(graphics: ^Graphics_Settings) -> Air_Styles {
+	return {wind_up = graphics.air_wind_up, rising = graphics.air_rising, falling = graphics.air_falling, jetting = graphics.air_jetting}
+}
+
+// The weights of the clips the styles draw; the others' none.
+air_weights_styled :: proc(weights: Air_Weights, styles: Air_Styles) -> (styled: Air_Weights) {
+	styled = weights
+	if styles.rising == .Classic do styled[.Jump_Rise], styled[.Jump_Hover] = 0, 0
+	if styles.falling == .Ballerina do styled[.Jump_Fall] = 0
+	if styles.jetting == .Classic {
+		for id in ([?]Air_Clip_Id{.Jet_Rise, .Jet_Backward, .Jet_Forward, .Jet_Fall, .Jet_Forward_0, .Jet_Forward_1, .Jet_Backward_0, .Jet_Backward_1}) do styled[id] = 0
+	}
+	return
+}
+
 air_clip_parse :: proc(text: string) -> (clip: Air_Clip) {
 	remaining := text
 	seen: [MAX_ANIMATION_POINTS]bool

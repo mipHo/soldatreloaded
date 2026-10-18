@@ -262,6 +262,7 @@ match_update :: proc(match: ^Match, config: ^res.Client_Config, sounds: ^sound.S
 		online.line_smooth(match.line, dt, f32(config.network.smooth) / 1000)
 		offsets = &stream.blend
 	}
+	match.art.air_styles = res.air_styles_of(&config.graphics) // as the menu has them now
 	draw.frame_build(&match.frame, &match.before, match.game, alpha, offsets, &match.art)
 	match.seen = draw.camera_between(match.camera, alpha)
 	if match.request == nil && match.settings { // after the ticks, which the settings don't stop
@@ -399,6 +400,7 @@ tick :: proc(match: ^Match, config: ^res.Client_Config, sounds: ^sound.Sound) {
 shown :: proc(match: ^Match, config: ^res.Client_Config, sounds: ^sound.Sound) {
 	game := match.game
 	for &soldier, id in game.world.soldiers do draw.air_transition_step(&match.art.air_transitions[id], &soldier, match.art.air_tuning, 1.0/60, &match.before.soldiers[id], game.resources.animations)
+	match.art.air_styles = res.air_styles_of(&config.graphics)
 	draw.poa_hair_tick(&match.art, game, config.graphics.original_soldiers) // after the airborne poses' blend, whose head the hair hangs from
 	names := soldier_names(match)
 	match.hud.feed.console_length = int(config.interface.console_lines)
