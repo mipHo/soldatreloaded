@@ -97,6 +97,29 @@ tag runs `.github/workflows/release.yml`, each step only if the one before succe
    icon, as `.github/discord-notify.jq` makes it. Not for a pre-release. It can be run by
    hand from the Actions tab, or with `gh workflow run`, to announce a release again, or
    with notes and a title of its own.
+5. **itch**: `itch.yml` pushes the game to itch.io (below). Not for a pre-release.
+
+### itch.io
+
+The game is on itch.io too, at https://soldatreloaded.itch.io/soldat-reloaded (the
+`ITCH_GAME` in `itch.yml`), for players who install it with the itch app, which keeps
+it updated in the launcher's place. `itch.yml` takes each platform's zip from the GitHub
+release, leaves out the launcher and its `manifest.json` (two updaters would fight), adds
+an `.itch.toml` that starts the game from the install's root, and pushes it with butler
+to the channel `windows` or `linux`, as the release's version. The server isn't on
+itch.io.
+
+It needs an API key of the page's account (https://itch.io/user/settings/api-keys) as
+the repository's secret `BUTLER_API_KEY` (Settings → Secrets and variables → Actions);
+without it, the itch job fails and the rest of the release stands. Every release goes
+up with the rest. To push one that is out already:
+
+```bash
+gh workflow run itch.yml -f tag=v0.25.0
+```
+
+The first push of each channel makes its upload on the page, its platform marked by the
+channel's name; check it there (Edit game → Uploads) after the first push.
 
 A tag whose tests fail releases nothing; delete it, fix, and tag again.
 

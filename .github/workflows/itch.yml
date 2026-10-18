@@ -1,0 +1,82 @@
+name: itch
+
+# A release's game on itch.io, for Windows and Linux, which the itch app installs and
+# keeps updated (docs/git.md): each platform's zip from the GitHub release, unpacked and
+# pushed by butler to its channel (windows, linux) as the release's version. Without the
+# launcher and its manifest: itch is the updater there, and the launcher's would fight
+# it. The game is started by .itch.toml, from the install's root, as the launcher starts
+# it.
+#
+# release.yml runs it after each release; by hand (the Actions tab, or
+# `gh workflow run itch.yml -f tag=v0.25.0`) it pushes a release that is out already.
+# The game's page is https://soldatreloaded.itch.io/soldat-reloaded (ITCH_GAME). Needs
+# the repository's BUTLER_API_KEY secret (an itch.io API key of that account's,
+# https://itch.io/user/settings/api-keys).
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: the release to push, as its tag (v0.25.0)
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  ITCH_GAME: soldatreloaded/soldat-reloaded # user/game, as the page's address has them
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: check
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+        run: |
+          if [ -z "$BUTLER_API_KEY" ]; then
+            echo "::error::set the BUTLER_API_KEY secret first (docs/git.md)"
+            exit 1
+          fi
+
+      - name: download
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir dist \
+            --pattern soldatreloaded-windows.zip --pattern soldatreloaded-linux.zip
+
+      - name: butler
+        run: |
+          set -euo pipefail
+          curl -fsSL -o butler.zip https://broth.itch.zone/butler/linux-amd64/LATEST/archive/default
+          mkdir -p butler && unzip -q butler.zip -d butler && chmod +x butler/butler
+          echo "$PWD/butler" >> "$GITHUB_PATH"
+
+      - name: push
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          butler -V
+          for platform in windows linux; do
+            case "$platform" in
+              windows) exe=.exe ;;
+              linux) exe= ;;
+            esac
+            stage="itch-$platform"
+            rm -rf "$stage" && mkdir -p "$stage"
+            unzip -q "dist/soldatreloaded-$platform.zip" -d "$stage"
+            install="$stage/Soldat Reloaded"
+            rm -f "$install/soldatreloaded-launcher$exe" "$install/manifest.json"
+            printf '[[actions]]\nname = "play"\npath = "soldatreloaded%s"\n' "$exe" > "$install/.itch.toml"
+            butler push "$install" "$ITCH_GAME:$platform" --userversion "${TAG#v}"
+          done

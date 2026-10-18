@@ -1,9 +1,10 @@
 name: release
 
 # Pushing a tag v<major>.<minor>.<patch> releases it (docs/git.md): the tests, then the
-# packages for each platform, then a GitHub release with them, then Discord is told.
-# Each step only if the one before succeeded. A tag with a suffix (v0.2.0-rc.1) makes
-# a pre-release, which the updater does not move to and Discord is not told of.
+# packages for each platform, then a GitHub release with them, then Discord is told and
+# the game goes up on itch.io. Each step only if the one before succeeded. A tag with a
+# suffix (v0.2.0-rc.1) makes a pre-release, which the updater does not move to, Discord
+# is not told of, and itch.io doesn't get.
 
 on:
   push:
@@ -70,6 +71,15 @@ jobs:
           if [[ "$TAG" == *-* ]]; then prerelease="--prerelease"; fi
           gh release create "$TAG" dist/* \
             --title "$TAG" --notes-from-tag --verify-tag $prerelease
+
+  # The game on itch.io too (itch.yml); a pre-release isn't.
+  itch:
+    needs: publish
+    if: ${{ !contains(github.ref_name, '-') }}
+    uses: ./.github/workflows/itch.yml
+    with:
+      tag: ${{ github.ref_name }}
+    secrets: inherit
 
   # A release announced on Discord (discord-notify.yml); a pre-release (v0.11.0-rc.1) isn't.
   discord:
