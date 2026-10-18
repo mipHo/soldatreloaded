@@ -18,6 +18,7 @@ join_links :: proc(t: ^testing.T) {
 		{"SoldatReloaded://join/play.example.com", "play.example.com"}, // the game's port
 		{"soldatreloaded://join/1.2.3.4:23073/se%2Fcret", "1.2.3.4:23073/se/cret"},
 		{"soldatreloaded:join/1.2.3.4:23073", "1.2.3.4:23073"},
+		{"soldatreloaded://join/1.2.3.4:23073/a%2Bb%25c%2Fd", "1.2.3.4:23073/a+b%c/d"}, // as the join page encodes one
 		{"soldatreloaded://join/1.2.3.4:0", ""},
 		{"soldatreloaded://join/1.2.3.4:70000", ""},
 		{"soldatreloaded://join/1.2.3.4:23073/two%20words", ""}, // a password no server has
