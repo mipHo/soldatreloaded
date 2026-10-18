@@ -115,6 +115,13 @@ server_stream_receive :: proc(s: ^Server_Stream, g: ^game.Game, slot: game.Soldi
 	}
 	soldier.player.typing = m.typing
 	soldier.loadout = game.loadout_allowed(m.owned.loadout, g.settings.guns_off)
+	// paused, the owner's hands are not taken, the menu's pick among them: one placed
+	// with its fists (joined while the game stands) is armed with its loadout as it
+	// picks it, or it went on unarmed when the game did
+	if paused && soldier.active && !soldier.vitals.dead && m.life == soldier.vitals.life &&
+	   soldier.arsenal.primary.weapon == .Punch && soldier.loadout.primary != .Punch {
+		game.soldier_arm(&g.resources, soldier, soldier.loadout.primary, soldier.loadout.secondary)
+	}
 	return true
 }
 

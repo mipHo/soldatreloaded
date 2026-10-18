@@ -545,6 +545,44 @@ words_before_far_soldiers :: proc(t: ^testing.T) {
 	testing.expectf(t, client_stream.pending.received >= net.STREAM_WORDS_KEPT, "the words came with them (%d)", client_stream.pending.received)
 }
 
+// Joined while the game is paused: placed with the fists, as no primary is picked yet.
+// The weapons menu's pick reaches the server while the game stands, which takes no owner's
+// hands then; the soldier is armed with it all the same, and not left unarmed when the
+// game goes on. One with a gun keeps it.
+@(test)
+paused_pick_arms :: proc(t: ^testing.T) {
+	server := make_game(true)
+	defer {game.game_destroy(server); free(server)}
+	server.world.soldiers[0].loadout = {.Punch, .Knife} // no primary picked
+	game.soldier_place(server, 0, .Alpha, remote = true)
+	game.round_pause(&server.round, true)
+	run(server, 1, {})
+	soldier := &server.world.soldiers[0]
+	testing.expect_value(t, soldier.arsenal.primary.weapon, res.Weapon.Punch)
+
+	words: net.Wire_Queue
+	net.wire_queue_init(&words)
+	stream: net.Server_Stream
+	net.server_stream_init(&stream, 1)
+	client_stream: net.Client_Stream
+	net.client_stream_init(&client_stream)
+	defer net.client_stream_destroy(&client_stream)
+	net.client_stream_reset(&client_stream, 1)
+	mine := soldier^ // my soldier as my client has it: the menu's pick its loadout
+	mine.loadout = {.AK74, .Knife}
+	buf: [net.MTU]u8
+	state := net.client_stream_state(&client_stream, &mine, buf[:])
+	testing.expect(t, net.server_stream_receive(&stream, server, 0, state, &words), "the server reads it")
+	testing.expect_value(t, soldier.arsenal.primary.weapon, res.Weapon.AK74)
+	testing.expect_value(t, soldier.arsenal.secondary.weapon, res.Weapon.Knife)
+
+	mine.loadout = {.Minigun, .Knife} // armed, a pick while paused waits for the next life
+	state = net.client_stream_state(&client_stream, &mine, buf[:])
+	testing.expect(t, net.server_stream_receive(&stream, server, 0, state, &words), "the server reads it")
+	testing.expect_value(t, soldier.arsenal.primary.weapon, res.Weapon.AK74)
+	testing.expect_value(t, soldier.loadout.primary, res.Weapon.Minigun)
+}
+
 // The grenades are the server's count, as OpenSoldat's: the owner's word, sent before it
 // heard of the kit that filled them, doesn't empty them again (which let one player take
 // two kits lying together); a throw heard from the owner takes one off.

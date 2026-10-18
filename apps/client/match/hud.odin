@@ -280,7 +280,7 @@ weapons_menu_key :: proc(match: ^Match) {
 }
 
 // After each tick: the weapons menu up at my first life and a second after I die, while
-// the round is played, unless the server gives no primary to pick. Online, a spectator just joined is shown the team menu, once.
+// the round is played or paused, unless the server gives no primary to pick. Online, a spectator just joined is shown the team menu, once.
 limbo_tick :: proc(match: ^Match) {
 	limbo := &match.limbo
 	menus := &match.hud.menus
@@ -301,12 +301,15 @@ limbo_tick :: proc(match: ^Match) {
 	// already up (open as I died, or by its key since): this death has had its menu, and
 	// a show still due would bring it back the moment a primary shuts it
 	if .Weapons in menus.open do limbo.died_at = nil
+	// paused too: a player who joins while the game stands is placed in it, and the menu
+	// once held back for the round to go on never came, the soldier left with its fists.
+	// Not once the round is over; my first life's menu waits for the next.
+	_, ended := match.game.round.phase.(sim.Ended)
 	first_life := !limbo.placed && !dead
-	limbo.placed = true
+	if !ended do limbo.placed = true
 	died_at, dying := limbo.died_at.?
-	_, playing := match.game.round.phase.(sim.Playing)
 	due := first_life || (dying && world.tick - died_at >= sim.TICK_RATE)
-	if due && playing && !limbo.locked && menus.open & {.Weapons, .Escape} == {} && any_primary(match) {
+	if due && !ended && !limbo.locked && menus.open & {.Weapons, .Escape} == {} && any_primary(match) {
 		weapons_show(match)
 		limbo.died_at = nil
 	}
