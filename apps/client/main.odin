@@ -511,19 +511,16 @@ window_follow :: proc(window: ^Window, graphics: ^res.Graphics_Settings) {
 	}
 }
 
-// Windowed at the size `wanted`, with its borders, in the middle of its display. A size
-// that doesn't fit it with its borders, its title bar and the taskbar (menu.windowed_fit),
-// as a resolution chosen for fullscreen may not, is shrunk to one that does, of the same
-// shape: the view is the window's own, whatever its size (draw/view.odin).
+// Windowed at the size `wanted`, with its borders, a little above the middle of its
+// display: the size the player chose, whether or not it fits the screen with its borders,
+// its title bar and the taskbar (the system may yet cap it near the screen's own). One
+// too tall or too wide for the middle has its top left on the screen's, below the title
+// bar, so the title bar can always be caught and the window moved. The view is the
+// window's own, whatever its size (draw/view.odin).
 window_windowed :: proc(wanted: [2]i32) {
 	monitor := rl.GetCurrentMonitor()
 	screen := [2]i32{rl.GetMonitorWidth(monitor), rl.GetMonitorHeight(monitor)}
-	fit := menu.windowed_fit(screen)
 	size := [2]i32{max(wanted.x, 1), max(wanted.y, 1)}
-	if size.x > fit.x || size.y > fit.y {
-		shrink := min(f32(fit.x) / f32(size.x), f32(fit.y) / f32(size.y))
-		size = {max(i32(f32(size.x) * shrink), 1), max(i32(f32(size.y) * shrink), 1)}
-	}
 	at := rl.GetMonitorPosition(monitor)
 	when ODIN_OS == .Linux {
 		if rl.IsWindowState({.BORDERLESS_WINDOWED_MODE}) do rl.ToggleBorderlessWindowed() // out of the fullscreen, its borders back
@@ -531,9 +528,18 @@ window_windowed :: proc(wanted: [2]i32) {
 		rl.ClearWindowState({.WINDOW_UNDECORATED})
 	}
 	rl.SetWindowSize(size.x, size.y)
+	// the position is the inside's: the title bar is above it, its height the desktop's
+	// scaling of one at 100%, with room to spare
+	title := i32(TITLE_BAR_HEIGHT * rl.GetWindowScaleDPI().y)
 	// a little above the middle: the taskbar below is taller than the title bar above
-	rl.SetWindowPosition(i32(at.x) + (screen.x - size.x) / 2, i32(at.y) + (screen.y - size.y) * 2 / 5)
+	x := max((screen.x - size.x) / 2, 0)
+	y := max((screen.y - size.y) * 2 / 5, title)
+	rl.SetWindowPosition(i32(at.x) + x, i32(at.y) + y)
 }
+
+// A window's title bar at the desktop's 100%, its border above it with it: room for
+// Windows' and the usual Linux desktops'.
+TITLE_BAR_HEIGHT :: 40
 
 // Fullscreen. On Windows an ordinary window, undecorated and over the whole of its
 // display, so it goes behind another as any window does: raylib's own fullscreen is
