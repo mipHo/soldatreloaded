@@ -455,10 +455,11 @@ discord_update :: proc(client: ^Client) {
 
 // The window's settings as they were last applied.
 Window :: struct {
-	mode:  res.Window_Mode,
-	size:  [2]i32, // windowed
-	vsync: bool,
-	fps:   i32, // the frames a second at most; 0 for no limit
+	mode:    res.Window_Mode,
+	size:    [2]i32, // windowed
+	vsync:   bool,
+	fps:     i32, // the frames a second at most; 0 for no limit
+	topmost: bool, // over everything while focused, let go of when it loses focus
 }
 
 // The window as the config has it: its size and mode, and how fast it is drawn. It
@@ -508,6 +509,15 @@ window_follow :: proc(window: ^Window, graphics: ^res.Graphics_Settings) {
 	if fps != window.fps {
 		rl.SetTargetFPS(fps)
 		window.fps = fps
+	}
+	// Over every other window while it has focus, so a borderless window stays above the
+	// taskbar as it is played; let go of the moment it loses focus, so Alt+Tab brings the
+	// window switched to in front of it rather than trapping it behind.
+	focused := rl.IsWindowFocused()
+	if focused != window.topmost {
+		if focused do rl.SetWindowState({.WINDOW_TOPMOST})
+		else do rl.ClearWindowState({.WINDOW_TOPMOST})
+		window.topmost = focused
 	}
 }
 
