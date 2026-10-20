@@ -26,7 +26,7 @@ draw_prompt :: proc(u: ^ui.Ui, data: ^Hud_Data) {
 	switch prompt.mode {
 	case .None:    return
 	case .Public:  prefix, color = "Chat:", CHAT_COLOR
-	case .Team:    prefix, color = "Team Chat:", TEAM_CHAT_COLOR
+	case .Team:    prefix, color = "Team:", TEAM_CHAT_COLOR
 	case .Command: prefix, color = "Cmd: ", ENTER_COLOR
 	}
 	line := fmt.tprintf("%s%s", prefix, prompt.text)

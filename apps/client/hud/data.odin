@@ -125,7 +125,7 @@ Pointer_Look :: struct {
 	scale: f32, // its size, 1 the image's own
 }
 
-// The chat's prompt, the original's: what is typed after "Chat:", "Team Chat:" or "Cmd: ".
+// The chat's prompt, the original's: what is typed after "Chat:", "Team:" or "Cmd: ".
 // Its text begins with the mode's own character, a space or a slash, which the drawing
 // shows and the sending drops.
 Chat_Mode :: enum {
