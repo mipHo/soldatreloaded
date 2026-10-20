@@ -457,6 +457,7 @@ discord_update :: proc(client: ^Client) {
 // The window's settings as they were last applied.
 Window :: struct {
 	mode:    res.Window_Mode,
+	monitor: i32, // the display it is on
 	size:    [2]i32, // windowed
 	vsync:   bool,
 	fps:     i32, // the frames a second at most; 0 for no limit
@@ -482,23 +483,25 @@ window_open :: proc(window: ^Window, graphics: ^res.Graphics_Settings) {
 		}
 	}
 	rl.SetExitKey(.KEY_NULL) // Escape is the screens'
-	window^ = {mode = .Windowed, size = {-1, -1}, vsync = graphics.vsync, fps = -1} // nothing applied yet: all of it is
+	window^ = {mode = .Windowed, monitor = -1, size = {-1, -1}, vsync = graphics.vsync, fps = -1} // nothing applied yet: all of it is
 	window_follow(window, graphics)
 }
 
 // The window changed to what the config has now, where it differs from what was made:
-// the mode, the size while windowed, vsync and the frame rate's limit, as the C client
-// applies them, at once. Fullscreen is a window without borders over the whole screen,
-// at the display's own mode, so Alt+Tab is instant and nothing flickers; the
-// resolution is the view's then, not the window's (draw/view.odin).
+// the mode, the display, the size while windowed, vsync and the frame rate's limit, as
+// the C client applies them, at once. Fullscreen is a window without borders over the
+// whole screen, at the display's own mode, so Alt+Tab is instant and nothing flickers;
+// the resolution is the view's then, not the window's (draw/view.odin).
 window_follow :: proc(window: ^Window, graphics: ^res.Graphics_Settings) {
 	size := [2]i32{graphics.screen_width, graphics.screen_height}
-	if graphics.window_mode != window.mode || (window.mode == .Windowed && size != window.size) {
+	monitor := menu.display_of(graphics)
+	if graphics.window_mode != window.mode || monitor != window.monitor || (window.mode == .Windowed && size != window.size) {
 		switch graphics.window_mode {
-		case .Windowed:   window_windowed(size)
-		case .Fullscreen: window_fullscreen()
+		case .Windowed:   window_windowed(size, monitor)
+		case .Fullscreen: window_fullscreen(monitor)
 		}
 		window.mode = graphics.window_mode
+		window.monitor = monitor
 		window.size = size
 	}
 	if graphics.vsync != window.vsync {
@@ -523,13 +526,12 @@ window_follow :: proc(window: ^Window, graphics: ^res.Graphics_Settings) {
 	}
 }
 
-// Windowed at the size `wanted`, borderless and centred on its display: no title bar or
-// border, the size the player chose, in the middle of the screen (its top left kept on
-// the display when the size is larger than the screen). The window has no title bar to
-// catch and is always re-centred, so it isn't dragged; the view is the window's own,
-// whatever its size (draw/view.odin).
-window_windowed :: proc(wanted: [2]i32) {
-	monitor := rl.GetCurrentMonitor()
+// Windowed at the size `wanted`, borderless and centred on the display `monitor`: no
+// title bar or border, the size the player chose, in the middle of the screen (its top
+// left kept on the display when the size is larger than the screen). The window has no
+// title bar to catch and is always re-centred, so it isn't dragged; the view is the
+// window's own, whatever its size (draw/view.odin).
+window_windowed :: proc(wanted: [2]i32, monitor: i32) {
 	screen := [2]i32{rl.GetMonitorWidth(monitor), rl.GetMonitorHeight(monitor)}
 	size := [2]i32{max(wanted.x, 1), max(wanted.y, 1)}
 	at := rl.GetMonitorPosition(monitor)
@@ -549,12 +551,19 @@ window_windowed :: proc(wanted: [2]i32) {
 // GLFW's, which holds the window over every other there, even after Alt+Tab. On Linux
 // such a window is still an ordinary one to the desktop, which keeps its panels and bars
 // over it; only the window manager's fullscreen covers them, which raylib's borderless
-// mode asks for, at the display's own mode, so nothing flickers.
-window_fullscreen :: proc() {
+// mode asks for, at the display's own mode, so nothing flickers. It covers the display
+// the window is on, so the window is moved onto `monitor` first, out of the fullscreen
+// if it was over another.
+window_fullscreen :: proc(monitor: i32) {
 	when ODIN_OS == .Linux {
-		if !rl.IsWindowState({.BORDERLESS_WINDOWED_MODE}) do rl.ToggleBorderlessWindowed()
+		if rl.IsWindowState({.BORDERLESS_WINDOWED_MODE}) {
+			if rl.GetCurrentMonitor() == monitor do return
+			rl.ToggleBorderlessWindowed()
+		}
+		at := rl.GetMonitorPosition(monitor)
+		rl.SetWindowPosition(i32(at.x), i32(at.y))
+		rl.ToggleBorderlessWindowed()
 	} else {
-		monitor := rl.GetCurrentMonitor()
 		at := rl.GetMonitorPosition(monitor)
 		rl.SetWindowState({.WINDOW_UNDECORATED})
 		rl.SetWindowPosition(i32(at.x), i32(at.y))

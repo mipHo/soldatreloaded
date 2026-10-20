@@ -10,7 +10,7 @@ import rl "vendor:raylib"
 import res "../../../core/resources"
 import "../ui"
 
-// What is drawn: the window (its mode, its resolution, vsync and the frame rate's limit,
+// What is drawn: the window (its mode, the display it is on, its resolution, vsync and the frame rate's limit,
 // which the client applies as they change), then the world's scenery, weather, trails
 // and sky (the map's colours or two of the player's own), then the soldiers' animations.
 
@@ -58,10 +58,17 @@ tab_graphics :: proc(menu: ^Menu) {
 	graphics := &menu.config.graphics
 	ui.section(k, "DISPLAY")
 	ui.enum_select(k, "Window", &graphics.window_mode, WINDOW_NAMES[:])
+	if count := rl.GetMonitorCount(); count > 1 {
+		names := make([]string, count, context.temp_allocator)
+		for i in 0 ..< count do names[i] = monitor_name(i)
+		if picked := ui.select_box(k, "Monitor", names, nil, int(display_of(graphics))); picked >= 0 {
+			graphics.monitor = i32(picked)
+		}
+	}
 	ui.enum_select(k, "Screen fit", &graphics.screen_fit, FIT_NAMES[:])
 	{
 		current := [2]i32{graphics.screen_width, graphics.screen_height}
-		sizes := resolutions(graphics.window_mode)
+		sizes := resolutions(graphics.window_mode, display_of(graphics))
 		names := make([]string, len(sizes) + 1, context.temp_allocator)
 		at := -1
 		for size, i in sizes {
@@ -113,8 +120,7 @@ tab_graphics :: proc(menu: ^Menu) {
 // which smooths it further at a cost; shrunk further than half, the smooth scaling would
 // skip pixels and shimmer.
 @(private = "file")
-resolutions :: proc(mode: res.Window_Mode) -> [][2]i32 {
-	monitor := rl.GetCurrentMonitor()
+resolutions :: proc(mode: res.Window_Mode, monitor: i32) -> [][2]i32 {
 	screen := [2]i32{rl.GetMonitorWidth(monitor), rl.GetMonitorHeight(monitor)}
 	largest := screen * 2
 	sizes := make([dynamic][2]i32, context.temp_allocator)
@@ -124,6 +130,21 @@ resolutions :: proc(mode: res.Window_Mode) -> [][2]i32 {
 	if !slice.contains(sizes[:], screen) do append(&sizes, screen)
 	slice.sort_by(sizes[:], proc(a, b: [2]i32) -> bool {return a.x < b.x || (a.x == b.x && a.y < b.y)})
 	return sizes[:]
+}
+
+// The display the window is to be on: graphics.monitor, or the primary if there is no
+// such display now (it was unplugged).
+display_of :: proc(graphics: ^res.Graphics_Settings) -> i32 {
+	return graphics.monitor if graphics.monitor >= 0 && graphics.monitor < rl.GetMonitorCount() else 0
+}
+
+// "1: DELL U2720Q (3840 x 2160)": the display's number from 1, its name and its size.
+@(private = "file")
+monitor_name :: proc(monitor: i32) -> string {
+	name := string(rl.GetMonitorName(monitor))
+	size := fmt.tprintf("%d x %d", rl.GetMonitorWidth(monitor), rl.GetMonitorHeight(monitor))
+	if name == "" do return fmt.tprintf("%d (%s)", monitor + 1, size)
+	return fmt.tprintf("%d: %s (%s)", monitor + 1, name, size)
 }
 
 // "1920 x 1080 (16:9)": the size, and the shape it is near enough, if any.
