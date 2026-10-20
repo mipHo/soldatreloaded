@@ -49,6 +49,7 @@ ADMIN_COMMANDS :: [?]string {
 	"kick", "kicklast", "ban", "banip", "banhw", "unban", "unbanlast", "mute", "unmute",
 	"setteam1", "setteam2", "setteam5", "pkill", "map", "nextmap", "restart", "pause",
 	"unpause", "addbot", "addbot1", "addbot2", "say", "bans", "mutes", "admins", "password",
+	"reloadwm",
 }
 
 // What /help says, a line each, as the chat has room for.
@@ -66,7 +67,7 @@ ADMIN_HELP := [?]string {
 	"/banip <address> ...  /banhw <hardware ID> ...  /unban <whom>  /unbanlast",
 	"/setteam1, /setteam2, /setteam5 <player> (alpha, bravo, spectator)  /pkill <player>",
 	"/servermute <player>  /serverunmute <whom>  /bans /mutes /admins",
-	"/map <name>  /nextmap  /restart  /pause  /unpause",
+	"/map <name>  /nextmap  /restart  /pause  /unpause  /reloadwm (weapons.ini)",
 	"/addbot [name] (/addbot1 alpha, /addbot2 bravo)  /say <text>",
 	"/password [password]: the join password until the server stops; none clears it",
 }
@@ -181,6 +182,10 @@ admin_command :: proc(sv: ^Server, from: Caller, text: string) -> bool {
 			sv.suicides[slot] = false // as a /kill of its own
 			log.infof("%s killed %s", by, utils.short_string_text(&sv.players[slot].name))
 		}
+	case "reloadwm": // the weapons mod read again from weapons.ini, and everyone told
+		server_weapons_changed(sv, weapons_load(WEAPONS_INI))
+		reply(sv, from, "Weapons reloaded from weapons.ini.")
+		log.infof("%s reloaded the weapons from %s", by, WEAPONS_INI)
 	case "mute":
 		arg, _ := next_word(rest)
 		slot, found := person_named(sv, from, arg)

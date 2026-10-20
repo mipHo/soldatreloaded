@@ -29,7 +29,7 @@ console_execute :: proc(app: ^App, typed: string) {
 	case "quit":
 		app.quit = true
 	case "help":
-		log.info("quit  weapon <weapon> <Key>=<n>...  weaponlist  script_reload  lua <code>")
+		log.info("quit  weapon <weapon> <Key>=<n>...  weaponlist  reloadwm  script_reload  lua <code>")
 		admin_command(sv, nil, line) // and the admin's
 	case "weapon":
 		weapon_command(app, rest)

@@ -49,15 +49,30 @@ offline_command :: proc(match: ^Match, text: string) {
 		round_start(match)
 	case "nextmap":
 		next_round(match)
+	case "reloadwm": // the weapons mod read again from weapons.ini (the server's /reloadwm)
+		offline_reload_weapons(match)
 	case "votemap", "votekick", "yes", "no":
 		hud.console_say(feed, hud.GAME_COLOR, "There are no votes offline.")
 	case "help":
 		hud.console_say(feed, hud.GAME_COLOR, "/team <1 alpha, 2 bravo>  /kill  /brutalkill  /dummies <how many, 0 to 6>")
-		hud.console_say(feed, hud.GAME_COLOR, "/map <name>  /restart  /nextmap  /addbot [name] (/addbot1 alpha, /addbot2 bravo)  /kick <bot>")
+		hud.console_say(feed, hud.GAME_COLOR, "/map <name>  /restart  /nextmap  /addbot [name] (/addbot1 alpha, /addbot2 bravo)  /kick <bot>  /reloadwm")
 		hud.console_say(feed, hud.GAME_COLOR, "Emotes: /tabac /smoke /takeoff /victory /breakdown /dab /yeah /piss /mercy /pwn")
 	case:
 		if !sim.soldier_taunt(me, word) do hud.console_say(feed, hud.GAME_COLOR, "Unknown command: /%s", word)
 	}
+}
+
+WEAPONS_INI :: "weapons.ini" // a weapons mod for offline play, read over the defaults if it is there, as the server reads its own
+
+// weapons.ini read again over the defaults and put to the game at once, as the server's
+// /reloadwm does: the game plays by them from now, this round and the next.
+@(private = "file")
+offline_reload_weapons :: proc(match: ^Match) {
+	weapons := res.GATHER_WEAPONS
+	_, modded := res.weapons_ini_read(WEAPONS_INI, &weapons)
+	match.game.settings.weapons = weapons
+	match.game.resources.weapons = sim.weapons_make(weapons)
+	hud.console_say(&match.hud.feed, hud.GAME_COLOR, "Weapons reloaded from %s", WEAPONS_INI if modded else "the defaults")
 }
 
 // How the game is played: the servers' weapons, and Offline Play's limits, over the game's
@@ -66,6 +81,7 @@ offline_command :: proc(match: ^Match, text: string) {
 settings_from :: proc(offline: res.Offline_Settings) -> sim.Game_Settings {
 	s := sim.DEFAULT_GAME_SETTINGS
 	s.weapons = res.GATHER_WEAPONS // the weapons a server plays by with no weapons.ini of its own, so offline plays as online
+	res.weapons_ini_read(WEAPONS_INI, &s.weapons) // a weapons mod over them if the file is there, as the server reads its own; else the defaults stand
 	if offline.time_limit > 0 do s.time_limit = offline.time_limit * 60 * sim.TICK_RATE
 	if offline.capture_limit > 0 do s.capture_limit = offline.capture_limit
 	s.respawn_time = clamp(offline.respawn_time, 1, 30) * sim.TICK_RATE

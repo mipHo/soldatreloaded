@@ -155,7 +155,7 @@ stop :: proc(app: ^App) {
 
 // The weapons the server plays by: GatherWM's, and `path` over them. The file made, each
 // number commented out, if it isn't there.
-@(private = "file")
+@(private = "package")
 weapons_load :: proc(path: string) -> res.Weapon_Table {
 	weapons := res.GATHER_WEAPONS
 	if !os.exists(path) {
