@@ -102,18 +102,19 @@ hud_draw :: proc(u: ^ui.Ui, hud: ^Hud, data: ^Hud_Data, minimap: ^draw.Minimap) 
 	}
 	draw_kill_icons(u, art, feed, data.kill_log, kill_feed_top(data), hud.scoreboard)
 	if data.minimap do draw_minimap(u, art, minimap, data)
+	summary := data.ended && players(data) > 1 // the end screen replaces the plain scoreboard
 	board_bottom: f32
-	if hud.scoreboard do board_bottom = draw_scoreboard_box(u, art, data)
+	if hud.scoreboard && !summary do board_bottom = draw_scoreboard_box(u, art, data)
 	draw_menu_boxes(u, art, menus, data)
 	draw_vote_box(u, art, data)
 	draw_team_box(u, art, data)
 
 	if me.active do draw_bar_texts(u, data)
 	draw_team_scores(u, data)
-	if data.ended && hud.scoreboard && players(data) > 1 do draw_round_end(u, data, board_bottom)
+	if summary do draw_round_summary(u, art, data)
 	if data.paused do draw_paused(u)
-	if hud.stats do draw_stats(u, art, feed, data, hud.scoreboard)
-	if hud.scoreboard do draw_scoreboard(u, data, board_bottom)
+	if hud.stats && !summary do draw_stats(u, art, feed, data, hud.scoreboard)
+	if hud.scoreboard && !summary do draw_scoreboard(u, data, board_bottom)
 	draw_console(u, feed, hud.scoreboard || hud.stats || team || (typing && .Weapons in menus.open), typing, data.prompt.scroll)
 	if playing do draw_respawn(u, art, mine)
 	draw_vote(u, data)
@@ -135,7 +136,7 @@ hud_draw :: proc(u: ^ui.Ui, hud: ^Hud, data: ^Hud_Data, minimap: ^draw.Minimap) 
 
 	draw_menus(u, art, menus, data, hud.scoreboard || hud.stats)
 	if menus_any_open(menus) || mine.dead || hud.scoreboard do draw_pointer(u, art, data) // the scoreboard is clicked to mute
-	if hud.scoreboard && !menus_any_open(menus) do scoreboard_mute_input(hud, u, data)
+	if hud.scoreboard && !summary && !menus_any_open(menus) do scoreboard_mute_input(hud, u, data)
 }
 
 // How many are in the game.

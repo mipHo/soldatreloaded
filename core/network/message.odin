@@ -272,6 +272,8 @@ msg_map_change :: proc(b: ^Buffer, m: ^Msg_Map_Change) {
 		net_u32(b, cast(^u32)&s.hits)
 		net_u32(b, cast(^u32)&s.headshots)
 		net_u32(b, cast(^u32)&s.streak)
+		net_u32(b, cast(^u32)&s.carry_ticks)
+		net_u32(b, cast(^u32)&s.fastest_cap)
 	}
 }
 
