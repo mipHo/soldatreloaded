@@ -178,6 +178,8 @@ hud_data :: proc(match: ^Match, config: ^res.Client_Config) -> (data: hud.Hud_Da
 	if interface.show_jitter do data.stats += {.Jitter}
 	data.player_names = interface.player_names
 	data.team_names = interface.team_names
+	data.name_color = rl.Color(interface.name_color)
+	data.carrier_color = rl.Color(interface.carrier_color)
 	data.typing = interface.typing
 	data.typing_size = f32(clamp(interface.typing_size, 50, 200)) / 100
 	data.kill_log = interface.kill_log_position

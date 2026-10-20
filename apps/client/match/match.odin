@@ -408,6 +408,14 @@ shown :: proc(match: ^Match, config: ^res.Client_Config, sounds: ^sound.Sound) {
 	names := soldier_names(match)
 	match.hud.feed.console_length = int(config.interface.console_lines)
 	match.hud.feed.kill_length = int(config.interface.kill_log_length)
+	// the kill log's own colours are the viewer's own relation to the players, so only while
+	// playing: watching a demo or spectating keeps the team colours
+	me_now := &game.world.soldiers[match.me]
+	match.hud.feed.kill_recolor = match.mode != .Demo && me_now.active && me_now.team != .None && me_now.team != .Spectator
+	match.hud.feed.kill_mine = maybe_color(config.interface.kill_color_mine)
+	match.hud.feed.kill_team = maybe_color(config.interface.kill_color_team)
+	match.hud.feed.kill_enemy = maybe_color(config.interface.kill_color_enemy)
+	match.hud.feed.kill_self = maybe_color(config.interface.kill_color_self)
 	if !match.playback.seeking {
 		draw.sparks_tick(&match.sparks, game) // the round standing, the sparks hang too
 		_, playing := game.round.phase.(sim.Playing)
@@ -422,6 +430,13 @@ shown :: proc(match: ^Match, config: ^res.Client_Config, sounds: ^sound.Sound) {
 	if ended, is_ended := game.round.phase.(sim.Ended); is_ended && ended.countdown == sim.ROUND_END_TICKS && match.mode == .Offline {
 		hud_round_ended(match) // online the server says so (Map_Change)
 	}
+}
+
+// A configured colour, if the player set one, as the HUD's own type.
+@(private = "file")
+maybe_color :: proc(c: Maybe(utils.Rgba)) -> Maybe(rl.Color) {
+	if v, ok := c.?; ok do return rl.Color(v)
+	return nil
 }
 
 // The art of the map now played, its minimap with it: the map's own loaded anew, the

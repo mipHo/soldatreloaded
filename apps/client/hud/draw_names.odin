@@ -11,8 +11,6 @@ import "../ui"
 // always, by them when they are in it; and spectating, everyone's, by them. The
 // original's RenderPlayerNames.
 
-@(private = "file") NAME_COLOR :: rl.Color{0x99, 0xDF, 0x99, 0xFF} // OUTOFSCREEN_MESSAGE_COLOR
-@(private = "file") CARRIER_COLOR :: rl.Color{0xDC, 0xDC, 0x33, 0xFF} // OUTOFSCREENFLAG_MESSAGE_COLOR
 @(private = "file") DEAD_COLOR :: rl.Color{0x98, 0x33, 0x33, 0xFF} // OUTOFSCREENDEAD_MESSAGE_COLOR
 
 draw_names :: proc(u: ^ui.Ui, data: ^Hud_Data) {
@@ -32,7 +30,7 @@ draw_names :: proc(u: ^ui.Ui, data: ^Hud_Data) {
 		dx := max(abs(mine.head.x - player.head.x), 1)
 		dy := max(abs(mine.head.y - player.head.y), 1)
 		alpha := min(255, 50 + int(math.round(100000 / (dx + dy / 2))))
-		color := CARRIER_COLOR if player.flag else DEAD_COLOR if player.dead else NAME_COLOR
+		color := data.carrier_color if player.flag else DEAD_COLOR if player.dead else data.name_color
 		write(u, player.name, {x, y}, WEAPONS_FONT, with_alpha(color, alpha))
 	}
 }

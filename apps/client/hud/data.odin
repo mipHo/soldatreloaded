@@ -66,6 +66,8 @@ Hud_Data :: struct {
 	stats_color:  rl.Color,
 	player_names: bool,
 	team_names:   bool, // teammates' names by them always, not only out of view
+	name_color:   rl.Color, // teammates' names
+	carrier_color: rl.Color, // a teammate carrying the flag
 	typing:       res.Typing_Style, // over a player typing
 	typing_size:  f32, // the indicator's size, 1 the small font's own
 	kill_log:     res.Kill_Log_Position,

@@ -46,6 +46,15 @@ Feed :: struct {
 	scrollback:     sa.Small_Array(BIG_CONSOLE_LINES, Console_Line), // the same lines kept long, newest last: the big console
 	console_length: int, // the lines it shows, as the config has it
 	kill_length:    int, // the kill feed's lines kept, as the config has it (0 for none); set before each tick
+	// the kill log's colours by who a line is about, relative to the viewer; none keeps the
+	// team's colour (killer_color/victim_color), or the gold for a self-kill. Applied only
+	// while playing (kill_recolor): watching a demo or spectating keeps the team colours, as
+	// the relation to a watched player is not the viewer's. All set each tick
+	kill_recolor:   bool,
+	kill_mine:      Maybe(rl.Color),
+	kill_team:      Maybe(rl.Color),
+	kill_enemy:     Maybe(rl.Color),
+	kill_self:      Maybe(rl.Color),
 	big:            Big_Message,
 	stats:          [res.Weapon]Weapon_Stat, // my shots, hits and kills, by weapon
 	shot:           Shot_Readout,            // my last kill's shot, while it is shown
@@ -255,12 +264,15 @@ feed_scroll :: proc(feed: ^Feed) {
 @(private = "file")
 kill_said :: proc(feed: ^Feed, world: ^sim.World, names: ^[sim.MAX_PLAYERS]string, kill: sim.Kill, me: sim.Soldier_Id) {
 	killer, victim := &world.soldiers[kill.killer], &world.soldiers[kill.target]
+	my_team := world.soldiers[me].team // whom the lines are coloured relative to
 	tallied := fmt.tprintf("%s (%d)", names[kill.killer], kill.kills) // the server's count, which the ruling carries
 	if kill.killer != kill.target {
-		kill_line(feed, tallied, killer_color(killer.team), kill.weapon, true)
-		kill_line(feed, names[kill.target], victim_color(victim.team), kill.weapon, false)
+		kill_line(feed, tallied, kill_log_color(feed, kill.killer, me, killer.team, my_team, killer_color(killer.team)), kill.weapon, true)
+		kill_line(feed, names[kill.target], kill_log_color(feed, kill.target, me, victim.team, my_team, victim_color(victim.team)), kill.weapon, false)
 	} else {
-		kill_line(feed, tallied, SUICIDE_COLOR, kill.weapon, kill.weapon != .Punch) // /kill: no icon
+		self := SUICIDE_COLOR
+		if feed.kill_recolor do self = feed.kill_self.? or_else SUICIDE_COLOR // watching keeps the gold
+		kill_line(feed, tallied, self, kill.weapon, kill.weapon != .Punch) // /kill: no icon
 	}
 
 	switch {
@@ -369,6 +381,24 @@ victim_color :: proc(team: res.Team) -> rl.Color {
 	case .Delta:   return {0xA0, 0xD0, 0xBA, 0xEB}
 	}
 	return {0x80, 0x13, 0x04, 0xEE}
+}
+
+// The kill log colour for a line about the player `who` on `team`, relative to the viewer
+// `me` on `my_team`: the player's own override for me, my team or the enemy; `otherwise`
+// (the team's own colour) where that override is unset.
+@(private = "file")
+kill_log_color :: proc(feed: ^Feed, who, me: sim.Soldier_Id, team, my_team: res.Team, otherwise: rl.Color) -> rl.Color {
+	if !feed.kill_recolor do return otherwise // watching: the team's colour, as before
+	override: Maybe(rl.Color)
+	switch {
+	case who == me:
+		override = feed.kill_mine
+	case my_team != .None && my_team != .Spectator && team == my_team:
+		override = feed.kill_team
+	case:
+		override = feed.kill_enemy
+	}
+	return override.? or_else otherwise
 }
 
 // The team whose flag it is.
