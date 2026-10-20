@@ -352,11 +352,13 @@ Radio_Call :: struct {
 // and radio calls, said by a key and not typed, still come through, but for a
 // spectator's while the spectators are muted.
 Mute_Settings :: struct {
-	everyone:   bool `jsoncomment:"everyone's chat"`,
-	team:       bool `jsoncomment:"your team's"`,
-	enemies:    bool `jsoncomment:"the other team's"`,
-	spectators: bool `jsoncomment:"the spectators', their taunts too"`,
-	players:    []string `jsoncomment:"these players', by name in any case, until unmuted"`,
+	everyone:     bool `jsoncomment:"everyone's chat"`,
+	team:         bool `jsoncomment:"your team's"`,
+	enemies:      bool `jsoncomment:"the other team's"`,
+	spectators:   bool `jsoncomment:"the spectators', their taunts too"`,
+	allow_taunts: bool `jsoncomment:"a muted player's taunts still reach you (not a muted spectator's); on by default"`,
+	allow_radio:  bool `jsoncomment:"a muted player's radio calls still reach you (not a muted spectator's); on by default"`,
+	players:      []string `jsoncomment:"these players', by name in any case, until unmuted"`,
 }
 
 LOBBY_URL :: "https://sr-lobby.fly.dev"
@@ -379,6 +381,8 @@ DEFAULT_CLIENT_CONFIG := Client_Config {
 		secondary_weapon = .Knife,
 	},
 	controls = {sensitivity = 1.0, legacy_flag_throw = true},
+	mutes = {allow_taunts = true, allow_radio = true}, // a muted player's taunts and radio still come through
+
 	graphics = {
 		screen_width      = 1600,
 		screen_height     = 900,
