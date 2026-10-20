@@ -34,7 +34,15 @@ SKILLS := [?]i32{300, 200, 100, 50, 10}
 SKILL_NAMES := [?]string{"Stupid", "Poor", "Normal", "Hard", "Impossible"}
 
 offline_init :: proc(offline: ^Offline, last_map: string) {
-	offline.maps = utils.list_files(sim.DATA_DIR + "/maps", ".pms")
+	// only CTF maps are offered offline: other .pms files dropped into maps/ are left out
+	all := utils.list_files(sim.DATA_DIR + "/maps", ".pms")
+	defer delete(all)
+	maps := make([dynamic]string, 0, len(all))
+	for name in all {
+		if strings.has_prefix(name, "ctf_") do append(&maps, name)
+		else do delete(name)
+	}
+	offline.maps = maps[:]
 	offline.last_map = strings.clone(last_map)
 	for name, i in offline.maps do if name == last_map do offline.map_cursor = i
 }
