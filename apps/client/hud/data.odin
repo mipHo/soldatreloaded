@@ -97,6 +97,10 @@ Player :: struct {
 	kills:  i32,
 	deaths: i32,
 	flags:  i32, // captures
+	shots:  i32, // the round's figures, for the end scoreboard: shots that could hit (accuracy's), hits on the enemy,
+	hits:   i32,
+	headshots: i32,
+	streak: i32, // the best run of kills without dying
 	ping:   i32, // ms; offline, nobody's
 	shirt:  rl.Color, // as it is worn: its team's
 	head:   [2]f32,   // where it is drawn, in the world: its head (the gostek's point 7)

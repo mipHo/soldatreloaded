@@ -149,7 +149,14 @@ draw_scoreboard :: proc(u: ^ui.Ui, data: ^Hud_Data, bottom: f32) {
 	for g in groups do line(u, {x + 35, g.top + 15}, 565, group_color(g.team))
 	write(u, "Points:", {x + 280, 40}, MENU_FONT, HEADING_COLOR)
 	write(u, "Deaths:", {x + 390, 40}, MENU_FONT, HEADING_COLOR)
-	write(u, "Ping:", {x + 530, 40}, MENU_FONT, HEADING_COLOR)
+	// at the round's end, the figures stand in for the ping: accuracy, headshots, best streak
+	if data.ended {
+		write(u, "Acc", {x + 445, 42}, SMALL_FONT, HEADING_COLOR)
+		write(u, "HS", {x + 492, 42}, SMALL_FONT, HEADING_COLOR)
+		write(u, "Streak", {x + 517, 42}, SMALL_FONT, HEADING_COLOR)
+	} else {
+		write(u, "Ping:", {x + 530, 40}, MENU_FONT, HEADING_COLOR)
+	}
 	write(u, data.hostname, {x + 30, 15}, SMALL_FONT, HOST_COLOR)
 	write(u, fmt.tprintf("Time %02d:%02d", data.time_left / 60, data.time_left % 60), {x + 485, 15}, SMALL_FONT, CLOCK_COLOR)
 	write(u, data.time_of_day, {x + 485, 30}, SMALL_FONT, CLOCK_COLOR)
@@ -175,7 +182,14 @@ draw_scoreboard :: proc(u: ^ui.Ui, data: ^Hud_Data, bottom: f32) {
 		write(u, fmt.tprintf("%d", player.kills), {x + 284, y}, SMALL_FONT, color)
 		write(u, fmt.tprintf("%d", player.deaths), {x + 394, y}, SMALL_FONT, color)
 		if player.flags > 0 do write(u, fmt.tprintf("x%d", player.flags), {x + 348, y}, SMALL_FONT, color)
-		if !player.bot do write(u, fmt.tprintf("%d", player.ping), {x + 534, y}, SMALL_FONT, color)
+		if data.ended {
+			acc := int(math.round(f32(player.hits) * 100 / f32(player.shots))) if player.shots > 0 else 0
+			write(u, fmt.tprintf("%d%%", acc), {x + 445, y}, SMALL_FONT, color)
+			write(u, fmt.tprintf("%d", player.headshots), {x + 494, y}, SMALL_FONT, color)
+			write(u, fmt.tprintf("%d", player.streak), {x + 524, y}, SMALL_FONT, color)
+		} else if !player.bot {
+			write(u, fmt.tprintf("%d", player.ping), {x + 534, y}, SMALL_FONT, color)
+		}
 	}
 
 	for g, i in groups {

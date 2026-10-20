@@ -51,15 +51,35 @@ frame_build :: proc(frame: ^Frame, before: ^Snapshot, game: ^sim.Game, alpha: f3
 	frame.tick_alpha = clamp(alpha, 0, 1)
 	frame.alpha = 1 if sim.round_standing(&game.round) else frame.tick_alpha
 	world := &game.world
+	ended, is_ended := game.round.phase.(sim.Ended)
+	celebrate := is_ended && ended.winner != .None // the winners dab and yeah, in step
 	for id in 0 ..< sim.MAX_PLAYERS {
-		frame.figures[id] = figure_between(
-			game.resources.animations,
-			&before.soldiers[id], &world.soldiers[id],
-			&before.corpses[id], &world.corpses[id],
-			frame.alpha,
-			offsets[id] if offsets != nil else {},
-			art, world.tick, id,
-		)
+		to := &world.soldiers[id]
+		offset := offsets[id] if offsets != nil else {}
+		if celebrate && to.active && !to.vitals.dead && to.team == ended.winner {
+			// the frozen round would hold them still, so the client plays the cheer itself
+			winner := to^
+			celebration_pose(game.resources.animations, &winner, world.tick)
+			frame.figures[id] = figure_between(game.resources.animations, &winner, &winner, &before.corpses[id], &world.corpses[id], 1, offset, art, world.tick, id)
+		} else {
+			frame.figures[id] = figure_between(game.resources.animations, &before.soldiers[id], to, &before.corpses[id], &world.corpses[id], frame.alpha, offset, art, world.tick, id)
+		}
+	}
+}
+
+// A winner's pose this frame: dab, then yeah, cycled by the world's tick so every winner
+// is in step. The body plays the cheer; yeah moves the legs with it.
+@(private = "file")
+celebration_pose :: proc(animations: ^res.Animations, soldier: ^sim.Soldier, tick: u32) {
+	dab, yeah := animations[.Dab].frame_count, animations[.Yeah].frame_count
+	pos := i32(tick % u32(max(dab + yeah, 1)))
+	if pos < dab {
+		soldier.pose.body.id, soldier.pose.body.frame = .Dab, pos + 1
+		soldier.pose.legs.id, soldier.pose.legs.frame = .Stand, 1
+	} else {
+		f := pos - dab + 1
+		soldier.pose.body.id, soldier.pose.body.frame = .Yeah, f
+		soldier.pose.legs.id, soldier.pose.legs.frame = .Yeah, f
 	}
 }
 
