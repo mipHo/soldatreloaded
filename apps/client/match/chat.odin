@@ -240,10 +240,10 @@ chat_heard :: proc(match: ^Match, slot: sim.Soldier_Id, team, taunt: bool, text:
 	names := soldier_names(match)
 	speaker := &match.game.world.soldiers[slot]
 	who := name if name != "" else names[slot] // the name carried with the line, else the roster's (own and offline lines carry none)
-	if slot != match.me && mute_hides(match, who, speaker.team, taunt) do return
 	// a radio call: its words heard as (RADIO), its call over the radio, a few seconds
-	// apart at most
+	// apart at most. Found before the mute so the allowance can tell it from a plain taunt
 	radio := team && len(text) >= 3 && text[0] == '*' && text[1] >= '1' && text[1] <= '3' && text[2] >= '1' && text[2] <= '3'
+	if slot != match.me && mute_hides(match, slot, who, speaker.team, taunt, radio) do return
 	if radio {
 		CALLS :: [3]string{"efc", "ffc", "es"}
 		PLACES :: [3]string{"up", "mid", "down"}

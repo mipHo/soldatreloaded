@@ -92,6 +92,7 @@ Match :: struct {
 	radio:      Radio,
 	emote_wheel: Emote_Wheel,
 	speech:     [sim.MAX_PLAYERS]Speech, // what each said last, over their head
+	scoreboard_muted: [sim.MAX_PLAYERS]bool, // muted from the scoreboard, by slot: this session, the player there now (cleared as they leave)
 	vote:       Vote_Seen,
 	watch:      Watch,
 	quality:    Line_Seen,
@@ -406,6 +407,7 @@ tick :: proc(match: ^Match, config: ^res.Client_Config, sounds: ^sound.Sound) {
 shown :: proc(match: ^Match, config: ^res.Client_Config, sounds: ^sound.Sound) {
 	game := match.game
 	for &soldier, id in game.world.soldiers do draw.air_transition_step(&match.art.air_transitions[id], &soldier, match.art.air_tuning, 1.0/60, &match.before.soldiers[id], game.resources.animations)
+	for &soldier, id in game.world.soldiers do if !soldier.active do match.scoreboard_muted[id] = false // a slot's scoreboard mute goes when its player leaves, not onto the next in it
 	match.art.air_styles = res.air_styles_of(&config.graphics)
 	// after the airborne poses' blend, whose head the hair hangs from; online, where the
 	// head is drawn, the corrections eased (frame_build's offsets)

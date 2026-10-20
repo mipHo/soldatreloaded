@@ -105,7 +105,7 @@ hud_data :: proc(match: ^Match, config: ^res.Client_Config) -> (data: hud.Hud_Da
 			head       = figure.points[7 - 1],
 			top        = figure.points[12 - 1],
 			typing     = !mine && soldier.player.typing,
-			muted      = !mine && mute_hides(match, names[id], soldier.team, false),
+			muted      = !mine && mute_hides(match, sim.Soldier_Id(id), names[id], soldier.team, false),
 			said       = utils.short_string_text(&speech.text),
 			said_ticks = speech.ticks,
 		}

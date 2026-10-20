@@ -19,16 +19,20 @@ MUTES_MAX :: 64
 
 // Whether a player's line is kept off my screen: said by `name` on `team`, by a key
 // (`taunt`) or typed.
-mute_hides :: proc(match: ^Match, name: string, team: res.Team, taunt: bool) -> bool {
+mute_hides :: proc(match: ^Match, slot: sim.Soldier_Id, name: string, team: res.Team, taunt: bool, radio := false) -> bool {
 	m := &match.config.mutes
 	if m.spectators && team == .Spectator do return true // a spectator's all, keys too
-	if taunt do return false
-	if m.everyone do return true
-	if team != .Spectator {
+	// whether the player's chat is muted at all, the taunt bypass aside: by their slot (the
+	// scoreboard's, this player alone) or by name or kind (the commands', across a rejoin)
+	base := match.scoreboard_muted[slot] || m.everyone || muted(m, name)
+	if !base && team != .Spectator {
 		mate := team == match.game.world.soldiers[match.me].team
-		if (m.team if mate else m.enemies) do return true
+		base = m.team if mate else m.enemies
 	}
-	return muted(m, name)
+	if !base do return false
+	// a muted player's taunt or radio call still comes through unless its allowance is off
+	if taunt do return !m.allow_radio if radio else !m.allow_taunts
+	return true
 }
 
 // mute <player>, unmute <player>: their chat kept off my screen, or let back; a player
@@ -82,14 +86,12 @@ scoreboard_mute_take :: proc(match: ^Match) {
 	match.hud.mute = nil
 	switch t in target {
 	case hud.Mute_Player:
+		// by slot, so this one player is muted even if another shares its name; it holds for
+		// the session, the /mute command is the one that keeps a name across a rejoin
+		muted := !match.scoreboard_muted[t.id]
+		match.scoreboard_muted[t.id] = muted
 		name := soldier_names(match)[t.id]
-		if name == "" do return
-		if muted(&match.config.mutes, name) {
-			mutes_remove(match.config, name)
-			client_say(match, "%s is unmuted", name)
-		} else if mutes_add(match.config, name) {
-			client_say(match, "%s is muted", name)
-		}
+		client_say(match, "%s is %s", name if name != "" else "That player", "muted" if muted else "unmuted")
 	case hud.Mute_Team:
 		scoreboard_mute_team(match, t.team)
 	}
