@@ -54,18 +54,68 @@ page_taunts :: proc(menu: ^Menu) {
 		if r := ui.row(k, ui.ROW_H, false); r.shown {
 			ui.text_fit(k, ui.BODY, "Pick a key above, then set what it does below. It binds as you go — nothing to save.", r.x + 10, r.y + r.h / 2, r.w - 20, ui.MUTED)
 		}
-		return
+	} else {
+		combo := fmt.tprintf("%s + %s", TAUNT_MODIFIER_NAMES[editor.modifier], strings.to_upper(TAUNT_SLOT_KEYS[editor.slot], context.temp_allocator))
+		ui.section(k, combo)
+		taunt_line(menu)
+		if r := ui.row(k, ui.ROW_H, true); r.shown {
+			bw := ui.button_w(k, "Remove")
+			if ui.button_at(k, ui.ctrl_x(r) + ui.ctrl_w(r) - bw, ui.ctrl_y(r), bw, ui.CTRL_H, "Remove", false, false) do taunt_clear(menu)
+			ui.text_fit(k, ui.BODY, "or press Delete", ui.ctrl_x(r), r.y + r.h / 2, ui.ctrl_w(r) - bw - 10, ui.MUTED)
+		}
 	}
 
-	combo := fmt.tprintf("%s + %s", TAUNT_MODIFIER_NAMES[editor.modifier], strings.to_upper(TAUNT_SLOT_KEYS[editor.slot], context.temp_allocator))
-	ui.section(k, combo)
-	taunt_line(menu)
+	taunt_list(menu)
+}
 
-	if r := ui.row(k, ui.ROW_H, true); r.shown {
-		bw := ui.button_w(k, "Remove")
-		if ui.button_at(k, ui.ctrl_x(r) + ui.ctrl_w(r) - bw, ui.ctrl_y(r), bw, ui.CTRL_H, "Remove", false, false) do taunt_clear(menu)
-		ui.text_fit(k, ui.BODY, "or press Delete", ui.ctrl_x(r), r.y + r.h / 2, ui.ctrl_w(r) - bw - 10, ui.MUTED)
+// The taunts there are, each a clickable row: the combo, what it does and the words it
+// says. Clicking one picks its key into the editor above.
+@(private = "file")
+taunt_list :: proc(menu: ^Menu) {
+	k := &menu.kit
+	u := k.ui
+	ui.section(k, "YOUR TAUNTS")
+	any := false
+	for slot in 0 ..< TAUNT_SLOTS {
+		taunt, found := taunt_at(menu.config, slot)
+		if !found do continue
+		any = true
+		r := ui.row(k, ui.ROW_H, true)
+		if (r.shown && ui.take(k, r.id, r.x, r.y, r.w, r.h)) || ui.take_enter(k, r.focused) do taunt_load(menu, slot)
+		if !r.shown do continue
+		combo := fmt.tprintf("%s+%s", TAUNT_MODIFIER_NAMES[taunt.modifier], strings.to_upper(TAUNT_SLOT_KEYS[slot], context.temp_allocator))
+		kind, words := taunt_summary(menu, taunt)
+		cy, cx := r.y + r.h / 2, r.x + 10
+		cw := min(ui.width_of(u, ui.BOLD, combo), 84)
+		ui.text_fit(k, ui.BOLD, combo, cx, cy, cw, ui.ACCENT if slot == menu.taunts.slot else ui.TEXT)
+		cx += cw + 12
+		kw := min(ui.width_of(u, ui.BODY, kind), 96)
+		ui.text_fit(k, ui.BODY, kind, cx, cy, kw, ui.MUTED)
+		cx += kw + 12
+		ui.text_fit(k, ui.BODY, words, cx, cy, r.x + r.w - 10 - cx, ui.MUTED)
 	}
+	if !any {
+		if r := ui.row(k, ui.ROW_H, false); r.shown {
+			ui.text_fit(k, ui.BODY, "None yet.", r.x + 10, r.y + r.h / 2, r.w - 20, ui.MUTED)
+		}
+	}
+}
+
+// A taunt as the list reads it: what it does, and the words it says (a radio call's own
+// when it carries none).
+@(private = "file")
+taunt_summary :: proc(menu: ^Menu, taunt: Taunt) -> (kind: string, words: string) {
+	switch taunt.mode {
+	case .Chat:
+		return "To everyone", taunt.text
+	case .Team:
+		return "To the team", taunt.text
+	case .Radio:
+		return "Radio", taunt.text if taunt.text != "" else radio_words(menu, max(taunt.radio, 1))
+	case .Emote:
+		return fmt.tprintf("Emote: %s", EMOTES[clamp(taunt.emote, 0, len(EMOTES) - 1)].title), taunt.text
+	}
+	return "", ""
 }
 
 // The one line for the picked key: a type dropdown, a target dropdown (which chat, which
