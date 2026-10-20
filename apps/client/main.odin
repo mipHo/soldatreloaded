@@ -126,6 +126,7 @@ main :: proc() {
 		discord_update(&client)
 		// raylib took one of its own on F12 as the last frame ended, which isn't wanted
 		if rl.IsKeyPressed(.F12) do screenshot_discard()
+		if input.bound_pressed(client.config, "minimize") do rl.MinimizeWindow() // to the taskbar; the taskbar or Alt+Tab brings it back
 		shot := input.bound_pressed(client.config, "screenshot")
 		rl.BeginDrawing()
 		draw(&client)
@@ -510,14 +511,15 @@ window_follow :: proc(window: ^Window, graphics: ^res.Graphics_Settings) {
 		rl.SetTargetFPS(fps)
 		window.fps = fps
 	}
-	// Over every other window while it has focus, so a borderless window stays above the
-	// taskbar as it is played; let go of the moment it loses focus, so Alt+Tab brings the
-	// window switched to in front of it rather than trapping it behind.
-	focused := rl.IsWindowFocused()
-	if focused != window.topmost {
-		if focused do rl.SetWindowState({.WINDOW_TOPMOST})
+	// With graphics.topmost on, over every other window while it has focus, so a borderless
+	// window stays above the taskbar as it is played; let go of the moment it loses focus,
+	// so Alt+Tab brings the window switched to in front of it rather than trapping it
+	// behind. Off (the default), an ordinary window that never forces itself on top.
+	want := graphics.topmost && rl.IsWindowFocused()
+	if want != window.topmost {
+		if want do rl.SetWindowState({.WINDOW_TOPMOST})
 		else do rl.ClearWindowState({.WINDOW_TOPMOST})
-		window.topmost = focused
+		window.topmost = want
 	}
 }
 

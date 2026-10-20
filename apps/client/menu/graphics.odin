@@ -81,6 +81,7 @@ tab_graphics :: proc(menu: ^Menu) {
 		}
 		if menu.custom_size.open do custom_size_row(menu)
 	}
+	ui.toggle(k, "Keep window on top", &graphics.topmost)
 	ui.toggle(k, "VSync", &graphics.vsync)
 	ui.toggle(k, "Limit frame rate", &graphics.fps_limit)
 	if graphics.fps_limit do ui.slider(k, "Max frame rate", &graphics.max_fps, MAX_FPS_LOWEST, MAX_FPS_HIGHEST, 10, "%d FPS")
