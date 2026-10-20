@@ -7,8 +7,8 @@ package input
 // is; the one-shot buttons (throw, change, prone, …) are kept from the frame they go
 // down until a tick takes them, so a press between two ticks is never lost or counted
 // twice. A key bound to anything else ("escmenu", "chat") is an action, handed to the
-// caller the frame it goes down. A key pressed with a modifier held is bound as
-// "alt+q" where that has a bind, and as "q" where not.
+// caller the frame it goes down. A key pressed with modifiers held is bound as the most
+// of them that have a bind with it: "alt+shift+q", else "alt+q" or "shift+q", else "q".
 //
 // The mouse is the original's: the system cursor is hidden and held in the window (the
 // client holds it while a match is shown), and the game keeps its own, moved by the
@@ -118,9 +118,9 @@ input_poll :: proc(input: ^Input, config: ^res.Client_Config, view: [2]f32, menu
 	radio_mods := radio_modifiers(config) if radio > 0 else {}
 	input.held = {}
 	for name, command in config.binds {
-		modifier, key, is_key := key_parse(name)
-		if !is_key || command == "" || !modifier_down(modifier) || overridden(config, modifier, name) do continue
-		if menu_owns(input, modifier, key, menu, radio, radio_mods) do continue
+		modifiers, key, is_key := key_parse(name)
+		if !is_key || command == "" || !modifiers_down(modifiers) || overridden(config, modifiers, key) do continue
+		if menu_owns(input, modifiers, key, menu, radio, radio_mods) do continue
 
 		if button, is_button := button_of(command); is_button {
 			if !controls do continue
@@ -218,7 +218,7 @@ input_radio_digit :: proc(config: ^res.Client_Config, calls: int) -> (digit: int
 // The modifiers bound to open the radio themselves (`shift` or `rshift` to +radio, and
 // so on): held, they are the radio's, and its digits still its own.
 @(private = "file")
-radio_modifiers :: proc(config: ^res.Client_Config) -> (own: bit_set[Modifier]) {
+radio_modifiers :: proc(config: ^res.Client_Config) -> (own: Modifiers) {
 	for name, command in config.binds {
 		if !strings.equal_fold(strings.trim_space(command), "+radio") do continue
 		switch name {
@@ -235,13 +235,13 @@ radio_modifiers :: proc(config: ^res.Client_Config) -> (own: bit_set[Modifier]) 
 // open: with Alt or Shift they are the taunts'. The radio menu's: its calls' plain digits,
 // and those with a modifier that is the radio's own key (radio_modifiers).
 @(private = "file")
-menu_owns :: proc(input: ^Input, modifier: Modifier, key: Key, menu: bool, radio: int, radio_mods: bit_set[Modifier]) -> bool {
+menu_owns :: proc(input: ^Input, modifiers: Modifiers, key: Key, menu: bool, radio: int, radio_mods: Modifiers) -> bool {
 	#partial switch k in key {
 	case rl.MouseButton:  return k == .LEFT && (menu || input.clicked)
 	case rl.KeyboardKey:
-		if menu do return k >= .ZERO && k <= .NINE && (modifier == .None || modifier == .Ctrl)
+		if menu do return k >= .ZERO && k <= .NINE && modifiers <= {.Ctrl}
 		digit := int(k) - int(rl.KeyboardKey.ZERO)
-		return (modifier == .None || modifier in radio_mods) && digit >= 1 && digit <= radio
+		return modifiers <= radio_mods && digit >= 1 && digit <= radio
 	}
 	return false
 }
@@ -259,15 +259,17 @@ button_of :: proc(command: string) -> (button: sim.Button, ok: bool) {
 	return
 }
 
-// A plain key's bind gives way to the same key's with a modifier held, where that has a
-// bind of its own.
+// A key's bind with `modifiers` gives way to the same key's with more of the modifiers
+// held, where that has a bind of its own: "q" to "alt+q", "shift+equals" to
+// "alt+shift+equals".
 @(private = "file")
-overridden :: proc(config: ^res.Client_Config, modifier: Modifier, name: string) -> bool {
-	if modifier != .None do return false
-	for held in Modifier {
-		if held == .None || !modifier_down(held) do continue
-		with := strings.concatenate({modifier_name(held), "+", name}, context.temp_allocator)
-		if _, bound := res.client_config_bind(config, with); bound do return true
+overridden :: proc(config: ^res.Client_Config, modifiers: Modifiers, key: Key) -> bool {
+	held := modifiers_held()
+	if held - modifiers == {} do return false // none held besides its own
+	for name, command in config.binds {
+		if command == "" do continue
+		with, other, is_key := key_parse(name)
+		if is_key && modifiers < with && with <= held && key_same(key, other) do return true
 	}
 	return false
 }
@@ -279,13 +281,13 @@ input_release_all :: proc(input: ^Input) {
 	input.pressed = {}
 }
 
-// Whether a key bound to `command` is down, with its modifier if it has one: a held
+// Whether a key bound to `command` is down, with its modifiers if it has any: a held
 // command's, as the emote wheel's is open while its key is.
 input_command_held :: proc(config: ^res.Client_Config, command: string) -> bool {
 	for name, bound in config.binds {
 		if strings.trim_space(bound) != command do continue
-		modifier, key, is_key := key_parse(name)
-		if is_key && modifier_down(modifier) && key_down(key) do return true
+		modifiers, key, is_key := key_parse(name)
+		if is_key && modifiers_down(modifiers) && key_down(key) do return true
 	}
 	return false
 }

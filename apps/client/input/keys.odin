@@ -8,7 +8,8 @@ import rl "vendor:raylib"
 import res "../../../core/resources"
 
 // The keys by the names the binds give them, the original's: "a", "5", "f1", "space",
-// "mouse1", "mwheelup", and a modifier before one with a plus: "alt+q", "ctrl+f9".
+// "mouse1", "mwheelup", and the modifiers before one, each with a plus: "alt+q",
+// "ctrl+f9", "alt+shift+equals".
 
 Key :: union {
 	rl.KeyboardKey,
@@ -29,17 +30,21 @@ Modifier :: enum {
 	Shift,
 }
 
-// A bind's name as its modifier and key. False for a name that is no key.
-key_parse :: proc(name: string) -> (modifier: Modifier, key: Key, ok: bool) {
+// The modifiers held with a key, .None never among them: {} for a plain key.
+Modifiers :: bit_set[Modifier]
+
+// A bind's name as its modifiers and key, in any order before it. False for a name that
+// is no key.
+key_parse :: proc(name: string) -> (modifiers: Modifiers, key: Key, ok: bool) {
 	plain := name
-	if plus := strings.index_byte(name, '+'); plus > 0 {
-		switch name[:plus] {
-		case "alt":   modifier = .Alt
-		case "ctrl":  modifier = .Ctrl
-		case "shift": modifier = .Shift
+	for plus := strings.index_byte(plain, '+'); plus > 0; plus = strings.index_byte(plain, '+') {
+		switch plain[:plus] {
+		case "alt":   modifiers += {.Alt}
+		case "ctrl":  modifiers += {.Ctrl}
+		case "shift": modifiers += {.Shift}
 		case:         return
 		}
-		plain = name[plus + 1:]
+		plain = plain[plus + 1:]
 	}
 	key, ok = key_named(plain)
 	return
@@ -65,15 +70,37 @@ key_pressed :: proc(key: Key) -> bool {
 	return false
 }
 
-// A key bound to `command` gone down this frame, its modifier held: for what the client
+// A key bound to `command` gone down this frame, its modifiers held: for what the client
 // does in and out of a match alike (a screenshot).
 bound_pressed :: proc(config: ^res.Client_Config, command: string) -> bool {
 	for name, bound in config.binds {
 		if bound != command do continue
-		modifier, key, is_key := key_parse(name)
-		if is_key && modifier_down(modifier) && key_pressed(key) do return true
+		modifiers, key, is_key := key_parse(name)
+		if is_key && modifiers_down(modifiers) && key_pressed(key) do return true
 	}
 	return false
+}
+
+// Every one of `modifiers` held; true for none.
+modifiers_down :: proc(modifiers: Modifiers) -> bool {
+	for m in modifiers do if !modifier_down(m) do return false
+	return true
+}
+
+// The modifiers held now.
+modifiers_held :: proc() -> (held: Modifiers) {
+	for m in Modifier do if m != .None && modifier_down(m) do held += {m}
+	return
+}
+
+// The modifiers' names in a bind, as a bind is written: Alt before Ctrl before Shift,
+// each with its plus, "alt+shift+"; "" for none. For this frame.
+modifiers_prefix :: proc(modifiers: Modifiers) -> string {
+	prefix := ""
+	for m in ([?]Modifier{.Alt, .Ctrl, .Shift}) {
+		if m in modifiers do prefix = strings.concatenate({prefix, modifier_name(m), "+"}, context.temp_allocator)
+	}
+	return prefix
 }
 
 modifier_down :: proc(modifier: Modifier) -> bool {
@@ -143,7 +170,7 @@ key_name :: proc(key: Key) -> (name: string, ok: bool) {
 	return "", false
 }
 
-@(private = "file")
+@(private = "package")
 key_same :: proc(a, b: Key) -> bool {
 	switch x in a {
 	case rl.KeyboardKey: y, is := b.(rl.KeyboardKey); return is && x == y

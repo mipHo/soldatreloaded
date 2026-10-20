@@ -9,8 +9,8 @@ import "../input"
 
 // A key waited for, to bind: whatever goes down next, a key, a mouse button or the
 // wheel, named as the binds name it (input/keys.odin). A modifier (Shift, Ctrl, Alt)
-// waits: let go alone, it is the key; held with another, the two are, as "shift+e",
-// which the binds look up first. Escape, or a controller's B, gives up. While a key is
+// waits: let go alone, it is the key; held with another, the two are, as "shift+e", or
+// all of those held, as "alt+shift+e", which the binds look up first. Escape, or a controller's B, gives up. While a key is
 // waited for it takes every key and click.
 
 Capture :: struct {
@@ -65,16 +65,8 @@ capture_input :: proc(k: ^Kit) -> bool {
 	for key := rl.GetKeyPressed(); key != .KEY_NULL; key = rl.GetKeyPressed() {
 		if is_modifier(key) do continue
 		name := input.key_name(key) or_continue
-		// the modifier held, named as the binds name it: Alt before Ctrl before Shift
-		with := ""
-		if input.modifier_down(.Alt) {
-			with = "alt"
-		} else if input.modifier_down(.Ctrl) {
-			with = "ctrl"
-		} else if input.modifier_down(.Shift) {
-			with = "shift"
-		}
-		capture_done(c, fmt.tprintf("%s+%s", with, name) if with != "" else name)
+		// the modifiers held, named as the binds name them: Alt before Ctrl before Shift
+		capture_done(c, fmt.tprintf("%s%s", input.modifiers_prefix(input.modifiers_held()), name))
 		return true
 	}
 	for b in 0 ..= int(rl.MouseButton.EXTRA) { // mouse1 to mouse5

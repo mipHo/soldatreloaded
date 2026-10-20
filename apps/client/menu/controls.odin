@@ -25,6 +25,8 @@ CONTROLS := [?]Control {
 	{"Weapon stats", "statsmenu"}, {"Minimap", "toggle ui_minimap"},
 	{"Fullscreen", "togglewindow"}, {"Screenshot", "screenshot"}, {"Record demo", "togglerecord"},
 	{"Vote yes", "say /yes"}, {"Vote no", "say /no"},
+	{"Volume up", "volume +5"}, {"Volume down", "volume -5"},
+	{"Sensitivity up", "sensitivity +5"}, {"Sensitivity down", "sensitivity -5"},
 }
 
 // The groups, as runs of CONTROLS, and the column each goes in.
@@ -42,7 +44,8 @@ CONTROL_GROUPS := [?]Control_Group {
 	{"TALK", 12, 5, 1},
 	{"MENUS", 17, 5, 1},
 	{"DISPLAY", 22, 3, 1},
-	{"VOTES", 25, 2, 0}, // last in one column; under COMBAT in two
+	{"VOTES", 25, 2, 1},
+	{"VOLUME & MOUSE", 27, 4, 0}, // 5% a press; last in one column, under COMBAT in two
 }
 
 page_controls :: proc(menu: ^Menu) {

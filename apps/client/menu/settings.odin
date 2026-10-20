@@ -1,5 +1,6 @@
 package menu
 
+import res "../../../core/resources"
 import "../ui"
 
 // The settings, a tab each: what is drawn (graphics.odin), the sound (sounds.odin), the
@@ -50,7 +51,7 @@ tab_mouse :: proc(menu: ^Menu) {
 	k := &menu.kit
 	config := menu.config
 	ui.section(k, "MOUSE")
-	ui.slider(k, "Sensitivity", &config.controls.sensitivity, 0.1, 5.0, 0.1, "%.2f")
+	ui.slider(k, "Sensitivity", &config.controls.sensitivity, res.SENSITIVITY_LOWEST, res.SENSITIVITY_HIGHEST, 0.1, "%.2f")
 	ui.section(k, "POINTERS")
 	ui.color_row(k, "Menu cursor colour", &config.graphics.cursor_color)
 	ui.slider(k, "Menu cursor size", &config.graphics.cursor_size, 50, 200, 10, "%d%%")

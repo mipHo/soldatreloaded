@@ -1,9 +1,11 @@
 package match
 
 import "core:fmt"
+import "core:math"
 import "core:strconv"
 import "core:strings"
 
+import res "../../../core/resources"
 import "../hud"
 
 // What a key's bind or the prompt's slash asks: the original's commands, as the C
@@ -25,10 +27,12 @@ import "../hud"
 //   connect <address>  disconnect  quit
 //   netstats            a line a second of how the line is doing
 //   screenshot          the client's, in a match or out of one, taken each frame (main.odin)
+//   volume <percent | +n | -n>  sensitivity <percent | +n | -n>   set, or stepped by n
+//                       percent (1.00 the sensitivity's 100), and said in the console
 
 @(private = "file", rodata)
 COMMANDS := [?]string {
-	"escmenu", "teammenu", "weaponsmenu", "fragsmenu", "statsmenu", "toggle", "togglewindow",
+	"escmenu", "teammenu", "weaponsmenu", "fragsmenu", "statsmenu", "toggle", "togglewindow", "volume", "sensitivity",
 	"chat", "teamchat", "cmd", "say", "say_team", "votemap", "votekick", "+radio", "-radio", "radio", "emote", "+emotes", "-emotes",
 	"mute", "unmute", "muteall", "muteteam", "muteenemies", "mutespecs", "mutes", "freecam",
 	"record", "stop", "togglerecord", "playdemo", "demo_pause", "demo_fast", "demo_tick", "demo_tick_r",
@@ -65,6 +69,21 @@ command_run :: proc(match: ^Match, line: string) {
 	case "togglewindow":
 		graphics := &config.graphics
 		graphics.window_mode = .Windowed if graphics.window_mode == .Fullscreen else .Fullscreen
+	case "volume":
+		percent, ok := percent_set(f64(config.sound.volume), rest, 0, 100)
+		if !ok do usage(match, "volume <0 to 100 | +n | -n>")
+		else {
+			config.sound.volume = i32(percent)
+			client_say(match, "Volume %d%%", config.sound.volume)
+		}
+	case "sensitivity":
+		lowest, highest :: res.SENSITIVITY_LOWEST * 100, res.SENSITIVITY_HIGHEST * 100
+		percent, ok := percent_set(f64(config.controls.sensitivity) * 100, rest, lowest, highest)
+		if !ok do usage(match, "sensitivity <%.0f to %.0f | +n | -n>, percent", lowest, highest)
+		else {
+			config.controls.sensitivity = f32(percent / 100)
+			client_say(match, "Sensitivity %.2f", config.controls.sensitivity)
+		}
 	case "chat":
 		prompt_open(match, .Public)
 	case "teamchat":
@@ -150,6 +169,19 @@ toggle :: proc(match: ^Match, name: string) {
 		return
 	}
 	setting^ = !setting^
+}
+
+// A setting in percent as `arg` has it: a number, or `now` stepped by a signed one
+// ("+5", "-5"), within `lowest` and `highest`. A step lands on its own multiples, so a
+// value set by hand between them comes back onto them. False for no number.
+@(private = "file")
+percent_set :: proc(now: f64, arg: string, lowest, highest: f64) -> (percent: f64, ok: bool) {
+	n := strconv.parse_f64(arg) or_return
+	percent = n
+	if arg[0] == '+' || arg[0] == '-' {
+		percent = math.round((now + n) / abs(n)) * abs(n) if n != 0 else now
+	}
+	return clamp(percent, lowest, highest), true
 }
 
 // radio's numbers, 1 to RADIO_CALLS each, and the words after them; none if they aren't.

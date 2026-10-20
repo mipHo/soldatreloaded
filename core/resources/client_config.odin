@@ -106,6 +106,10 @@ Control_Settings :: struct {
 	legacy_flag_throw: bool `jsoncomment:"jump and crouch held together (w+s) throw the flag too, as older versions did"`,
 }
 
+// The mouse's speed the settings allow, its slider's and the `sensitivity` command's.
+SENSITIVITY_LOWEST :: 0.1
+SENSITIVITY_HIGHEST :: 5.0
+
 Graphics_Settings :: struct {
 	mods:              []string `jsoncomment:"the mods the game looks and sounds like, over Classic (mods/classic/), the top first: each a .smod or a folder of mods/, by its name. A file is the first of them's that has it, else Classic's. Empty for Classic alone. Chosen on the Mods page, which uses them at once."`,
 	screen_width:      i32 `jsoncomment:"the resolution's width: windowed, the window's; fullscreen, the world is drawn at it and scaled to the screen"`,
@@ -443,6 +447,10 @@ DEFAULT_BINDS := [?][2]string {
 	{"slash", "cmd"},
 	{"f12", "say /yes"},
 	{"f11", "say /no"},
+	{"shift+equals", "volume +5"},
+	{"shift+minus", "volume -5"},
+	{"alt+shift+equals", "sensitivity +5"},
+	{"alt+shift+minus", "sensitivity -5"},
 	{"alt+q", "say_team Cover me!"},
 	{"alt+w", "say_team Follow me!"},
 	{"alt+e", "say_team Enemy at our base!"},
