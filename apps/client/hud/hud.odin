@@ -48,6 +48,7 @@ Hud :: struct {
 	menus:      Menus,
 	scoreboard: bool, // the frags menu: F1, and up while a round's scores stand
 	stats:      bool, // my weapon stats: F2
+	mute:       Maybe(Mute_Target), // a click on the open scoreboard asking to mute; the match takes and clears it
 }
 
 hud_init :: proc(hud: ^Hud, mod: res.Mod) {
@@ -96,7 +97,7 @@ hud_draw :: proc(u: ^ui.Ui, hud: ^Hud, data: ^Hud_Data, minimap: ^draw.Minimap) 
 	draw_screen_texts(u, data)
 	if show_bars do draw_bars(u, art, mine)
 	if playing {
-		if !menus_any_open(menus) && !mine.dead && !data.ended do draw_crosshair(u, art, data) // gone as the round ends, as the original's
+		if !menus_any_open(menus) && !mine.dead && !data.ended && !hud.scoreboard do draw_crosshair(u, art, data) // gone as the round ends, as the original's; the scoreboard shows the pointer instead
 		draw_my_arrow(u, art, data)
 	}
 	draw_kill_icons(u, art, feed, data.kill_log, kill_feed_top(data), hud.scoreboard)
@@ -133,7 +134,8 @@ hud_draw :: proc(u: ^ui.Ui, hud: ^Hud, data: ^Hud_Data, minimap: ^draw.Minimap) 
 	draw_shot(u, feed, data.seconds)
 
 	draw_menus(u, art, menus, data, hud.scoreboard || hud.stats)
-	if menus_any_open(menus) || mine.dead do draw_pointer(u, art, data)
+	if menus_any_open(menus) || mine.dead || hud.scoreboard do draw_pointer(u, art, data) // the scoreboard is clicked to mute
+	if hud.scoreboard && !menus_any_open(menus) do scoreboard_mute_input(hud, u, data)
 }
 
 // How many are in the game.

@@ -330,6 +330,7 @@ view_open :: proc(match: ^Match, sounds: ^sound.Sound) {
 // numbers, and the binds' commands.
 @(private = "file")
 keys :: proc(match: ^Match, config: ^res.Client_Config, sounds: ^sound.Sound) {
+	scoreboard_mute_take(match) // a mute a scoreboard click asked for last frame
 	typing := prompt_up(match)
 	if typing do typing = chat_keys(match, config) // false once a click closed it, which the game takes
 	menu := hud.menus_any_open(&match.hud.menus)
@@ -340,6 +341,11 @@ keys :: proc(match: ^Match, config: ^res.Client_Config, sounds: ^sound.Sound) {
 	radio := match.radio.open && !typing && (!menu || (weapons_only && !config.radio.weapons_first))
 	before := match.input.cursor // the aim, held while the emote wheel is up
 	actions := input.input_poll(&match.input, config, match.camera.view, menu, RADIO_CALLS if radio else 0, typing, controls)
+	// the open scoreboard owns the left button, for muting a player or a team: no firing
+	if match.hud.scoreboard {
+		match.input.held -= {.Fire}
+		match.input.pressed -= {.Fire}
+	}
 	emote_wheel_keys(match, config, before)
 	menus_follow(match)
 	radio_took := false

@@ -233,3 +233,57 @@ draw_stats :: proc(u: ^ui.Ui, art: ^Art, feed: ^Feed, data: ^Hud_Data, scoreboar
 group_color :: proc(team: res.Team) -> rl.Color {
 	return {129, 52, 118, 255} if team == .Spectator else team_text_color(team)
 }
+
+// What a click on the open scoreboard asks the match to mute: a player, by their row, or
+// a whole team, by its caption.
+Mute_Target :: union {
+	Mute_Player,
+	Mute_Team,
+}
+Mute_Player :: struct {
+	id: sim.Soldier_Id,
+}
+Mute_Team :: struct {
+	team: res.Team,
+}
+
+// The pointer over a scoreboard row or caption on a left-click, as a mute request on the
+// Hud. Not over my own row. The rows are placed as draw_scoreboard places them.
+@(private = "package")
+scoreboard_mute_input :: proc(hud: ^Hud, u: ^ui.Ui, data: ^Hud_Data) {
+	if !rl.IsMouseButtonPressed(.LEFT) do return
+	at := data.cursor
+	x := board_x(u)
+	ranked := rank_players(data)
+	ranks := sa.slice(&ranked)
+	grouped := groups_of(data, ranks)
+	groups := sa.slice(&grouped)
+
+	// the team captions, each on its own line
+	for g in groups {
+		if row_hit(at, x, g.top) {
+			hud.mute = Mute_Team{g.team}
+			return
+		}
+	}
+	// the player rows
+	placed: [len(res.Team)]int
+	for id in ranks {
+		player := &data.players[id]
+		gi := group_of(groups, player.team)
+		row := groups[gi].top + 20 + f32(placed[gi] * PLAYER_ROW)
+		placed[gi] += 1
+		if id == data.me do continue // my own line is not muted
+		if row_hit(at, x, row) {
+			hud.mute = Mute_Player{id}
+			return
+		}
+	}
+}
+
+// Whether `at` is on a scoreboard row whose text sits at `top`: the row's full width,
+// PLAYER_ROW tall, from a little above the text.
+@(private = "file")
+row_hit :: proc(at: [2]f32, x, top: f32) -> bool {
+	return at.x >= x + 35 && at.x <= x + 600 && at.y >= top - 2 && at.y <= top - 2 + PLAYER_ROW
+}

@@ -6,6 +6,7 @@ import "core:strings"
 
 import sim "../../../core/game"
 import res "../../../core/resources"
+import "../hud"
 
 // My own mutes, on my screen alone (the original's /mute, which the server knows nothing
 // of; an admin's, for everyone, is /servermute): players muted by name, kept in the
@@ -70,6 +71,49 @@ mute_kind :: proc(match: ^Match, command: string) {
 	}
 	kind^ = !kind^
 	but := " (but for taunts)" if kind^ && command != "mutespecs" else ""
+	client_say(match, "%s is %s%s", who, "muted" if kind^ else "unmuted", but)
+}
+
+// A mute a click on the open scoreboard asked for (hud.mute): a player by their name, or
+// a team by its relation to me, each toggled as the chat commands do it, and cleared.
+scoreboard_mute_take :: proc(match: ^Match) {
+	target, asked := match.hud.mute.?
+	if !asked do return
+	match.hud.mute = nil
+	switch t in target {
+	case hud.Mute_Player:
+		name := soldier_names(match)[t.id]
+		if name == "" do return
+		if muted(&match.config.mutes, name) {
+			mutes_remove(match.config, name)
+			client_say(match, "%s is unmuted", name)
+		} else if mutes_add(match.config, name) {
+			client_say(match, "%s is muted", name)
+		}
+	case hud.Mute_Team:
+		scoreboard_mute_team(match, t.team)
+	}
+}
+
+// A whole team muted or unmuted from the scoreboard, mapped to the kind mutes relative to
+// me: my own team's caption to the team mute, another's to the enemies', the spectators'
+// to theirs (a spectator, with no team of my own, takes any playing team for the enemy).
+@(private = "file")
+scoreboard_mute_team :: proc(match: ^Match, team: res.Team) {
+	m := &match.config.mutes
+	mine := match.game.world.soldiers[match.me].team
+	kind: ^bool
+	who: string
+	switch {
+	case team == .Spectator:
+		kind, who = &m.spectators, "The spectators' chat"
+	case mine != .None && mine != .Spectator && team == mine:
+		kind, who = &m.team, "Your team's chat"
+	case:
+		kind, who = &m.enemies, "The enemies' chat"
+	}
+	kind^ = !kind^
+	but := " (but for taunts)" if kind^ && team != .Spectator else ""
 	client_say(match, "%s is %s%s", who, "muted" if kind^ else "unmuted", but)
 }
 
