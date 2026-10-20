@@ -180,6 +180,19 @@ hud_data :: proc(match: ^Match, config: ^res.Client_Config) -> (data: hud.Hud_Da
 	data.team_names = interface.team_names
 	data.name_color = rl.Color(interface.name_color)
 	data.carrier_color = rl.Color(interface.carrier_color)
+	// each team's kind-mute state, mirroring mute_hides, for the scoreboard's mute signs
+	mutes := &config.mutes
+	my_team := world.soldiers[match.me].team
+	for team in res.Team {
+		muted := mutes.everyone
+		if team == .Spectator {
+			muted = muted || mutes.spectators
+		} else if team != .None {
+			mate := my_team != .None && my_team != .Spectator && team == my_team
+			muted = muted || (mutes.team if mate else mutes.enemies)
+		}
+		data.team_muted[team] = muted
+	}
 	data.typing = interface.typing
 	data.typing_size = f32(clamp(interface.typing_size, 50, 200)) / 100
 	data.kill_log = interface.kill_log_position

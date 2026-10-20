@@ -104,15 +104,24 @@ draw_scoreboard_box :: proc(u: ^ui.Ui, art: ^Art, data: ^Hud_Data) -> f32 {
 		if id == data.me do picture(u, art.pictures[.Small_Dot], {align(u, 31 + x), align(u, row + 1)}, mark)
 		if player.flags > 0 do picture(u, art.pictures[.Flag], {align(u, 337 + x), align(u, row - 1)}, mark)
 		if player.bot do picture(u, art.pictures[.Bot], {align(u, 534 + x), align(u, row)}, mark)
-		if player.muted do picture(u, art.pictures[.Mute], {align(u, 246 + x), align(u, row - 1)}, mark) // the original's mute sign
+		// the mute sign, faint until it is muted, so a row shows it can be clicked to mute;
+		// not on my own row, which can't be muted
+		if id != data.me do picture(u, art.pictures[.Mute], {align(u, 246 + x), align(u, row - 1)}, {255, 255, 255, u8(STATUS_ALPHA) if player.muted else MUTE_HINT_ALPHA})
 		// the line's quality, red to green: the original's by its ConnectionQuality, here by the
 		// ping, whole up to 50 ms and gone by 350
 		quality := clamp(100 - (player.ping - 50) / 3, 0, 100)
 		connection := rl.Color{u8(255 * (100 - quality) / 100), u8(255 * quality / 100), 0, STATUS_ALPHA}
 		picture(u, art.pictures[.Connection], {align(u, 520 + x), align(u, row + 2)}, connection)
 	}
+	// each team's caption shows the mute sign too, faint until the team is muted: its
+	// caption is clicked to mute the whole team
+	for g in groups {
+		picture(u, art.pictures[.Mute], {align(u, 246 + x), align(u, g.top - 1)}, {255, 255, 255, u8(STATUS_ALPHA) if data.team_muted[g.team] else MUTE_HINT_ALPHA})
+	}
 	return bottom
 }
+
+MUTE_HINT_ALPHA :: 55 // the mute sign while not muted: faint, to show a row or caption can be clicked to mute
 
 @(private = "file") HEADING_COLOR :: rl.Color{255, 255, 230, 255}
 @(private = "file") HOST_COLOR :: rl.Color{233, 180, 12, 255}
