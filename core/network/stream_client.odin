@@ -102,11 +102,13 @@ client_stream_reset :: proc(c: ^Client_Stream, round: u16) {
 
 // A thing as heard, onto the client's: what it is and whose, always; where its points
 // are, only when they disagree with the client's own by more than a little, and never
-// while it is held, since a held thing rides its holder here. A thing that appeared or
-// changed kind is taken whole.
+// while it is held, since a held thing rides its holder here. A thing that appeared,
+// changed kind, or came up again at a new spawn (a kit taken and respawned, last_spawn
+// changed) is taken whole: it is a fresh instance, so none of the client's predicted
+// points carry across, which would otherwise streak it between the two across a tick.
 @(private = "file")
 thing_apply :: proc(t: ^game.Thing, heard: ^game.Thing) {
-	fresh := t.kind != heard.kind || t.point_count != heard.point_count
+	fresh := t.kind != heard.kind || t.point_count != heard.point_count || t.last_spawn != heard.last_spawn
 	was := t^
 	fields_copy(THING_FIELDS, t, heard)
 	if fresh do return
