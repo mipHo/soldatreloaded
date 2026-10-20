@@ -532,6 +532,10 @@ body_collide :: proc(
 		target_id := Soldier_Id(ti)
 		target := bullet_target(world, authority, bullet, ti) // as the shooter saw it
 		live := &world.soldiers[ti] // the one the wound and the shove land on
+		// the one the shooter saw died and came back (or died) since: this is a new life, at
+		// a stale place, not the one aimed at, so the shot passes it. Without this a rocket
+		// fired by the corpse's lagged view lands on whoever respawned into that slot
+		if target.vitals.life != live.vitals.life do continue
 		if melee && target_id == bullet.owner do continue
 
 		start: utils.Vec2
