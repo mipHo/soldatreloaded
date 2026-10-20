@@ -144,8 +144,9 @@ poa_project :: proc(n: hair.Node, dir: i32) -> [2]f32 {
 	return {f32(-3*n.x/1.1*f64(dir)), f32(-3*n.z)}
 }
 
-// Called exactly once after each 60 Hz game tick, including invisible demo seeks.
-poa_hair_tick :: proc(art: ^Art, game: ^sim.Game, original := false) {
+// Called exactly once after each 60 Hz game tick, including invisible demo seeks. With
+// `original`, every soldier's hair but `me`'s as Soldat 1's (draw_soldiers).
+poa_hair_tick :: proc(art: ^Art, game: ^sim.Game, original := false, me: sim.Soldier_Id = 0) {
 	h := &art.gostek.poa
 	if game.world.tick < h.last_tick {
 		for &player in h.players do player.ready = false
@@ -154,7 +155,7 @@ poa_hair_tick :: proc(art: ^Art, game: ^sim.Game, original := false) {
 	for &soldier, id in game.world.soldiers {
 		if id >= len(h.players) do return
 		p := &h.players[id]
-		look := as_original(soldier.player.look) if original else soldier.player.look
+		look := as_original(soldier.player.look) if original && sim.Soldier_Id(id) != me else soldier.player.look
 		style, custom := look.hair_style, look.hair_custom
 		pkg := h.packages[style]
 		if custom > 0 && int(custom) <= len(h.custom) do pkg = h.custom[int(custom)-1].pkg

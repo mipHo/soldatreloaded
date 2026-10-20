@@ -285,14 +285,14 @@ match_draw :: proc(match: ^Match, u: ^ui.Ui, config: ^res.Client_Config) {
 	if !direct { // into the canvas too, before the scissor
 		draw.canvas_fit(&match.canvas, view.size)
 		draw.canvas_begin(&match.canvas)
-		draw.draw_world(&match.art, match.game, &match.frame, &match.sparks, match.seen, {0, 0, f32(view.size.x), f32(view.size.y)}, &config.graphics)
+		draw.draw_world(&match.art, match.game, &match.frame, &match.sparks, match.seen, {0, 0, f32(view.size.x), f32(view.size.y)}, &config.graphics, match.me)
 		draw.canvas_end(&match.canvas)
 	}
 	rl.ClearBackground(rl.BLACK)
 	rl.BeginScissorMode(i32(area.x), i32(area.y), i32(area.width), i32(area.height))
 	defer rl.EndScissorMode()
 	if direct {
-		draw.draw_world(&match.art, match.game, &match.frame, &match.sparks, match.seen, area, &config.graphics)
+		draw.draw_world(&match.art, match.game, &match.frame, &match.sparks, match.seen, area, &config.graphics, match.me)
 	} else {
 		draw.canvas_show(&match.canvas, area)
 	}
@@ -401,7 +401,7 @@ shown :: proc(match: ^Match, config: ^res.Client_Config, sounds: ^sound.Sound) {
 	game := match.game
 	for &soldier, id in game.world.soldiers do draw.air_transition_step(&match.art.air_transitions[id], &soldier, match.art.air_tuning, 1.0/60, &match.before.soldiers[id], game.resources.animations)
 	match.art.air_styles = res.air_styles_of(&config.graphics)
-	draw.poa_hair_tick(&match.art, game, config.graphics.original_soldiers) // after the airborne poses' blend, whose head the hair hangs from
+	draw.poa_hair_tick(&match.art, game, config.graphics.original_soldiers, match.me) // after the airborne poses' blend, whose head the hair hangs from
 	names := soldier_names(match)
 	match.hud.feed.console_length = int(config.interface.console_lines)
 	match.hud.feed.kill_length = int(config.interface.kill_log_length)

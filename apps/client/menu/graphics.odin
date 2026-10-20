@@ -88,7 +88,7 @@ tab_graphics :: proc(menu: ^Menu) {
 	ui.toggle(k, "Background scenery", &graphics.scenery)
 	ui.toggle(k, "Weather", &graphics.weather)
 	ui.toggle(k, "Bullet trails", &graphics.trails)
-	ui.toggle(k, "Show all players as the classic soldier", &graphics.original_soldiers) // every style drawn as the male
+	ui.toggle(k, "Show other players as the classic soldier", &graphics.original_soldiers) // every style but mine drawn as the male
 	ui.toggle(k, "Render smooth polygons", &graphics.smooth_polygons) // no edge texture along their outsides
 	if picked := ui.select_box(k, "Sky", SKY_NAMES[:], nil, 1 if graphics.force_sky else 0); picked >= 0 {
 		graphics.force_sky = picked == 1

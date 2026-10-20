@@ -123,7 +123,7 @@ Graphics_Settings :: struct {
 	forced_sky_top:    utils.Rgba `jsoncomment:"the forced sky's colour at the top, RRGGBB"`,
 	forced_sky_bottom: utils.Rgba `jsoncomment:"the forced sky's colour at the bottom, RRGGBB"`,
 	grenade_color:     Maybe(utils.Rgba) `jsoncomment:"the grenades in this colour, RRGGBB, flat and solid; empty for their own art"`,
-	original_soldiers: bool `jsoncomment:"every soldier drawn as Soldat 1's, the male, whatever style its player picked (the female, rat, furry or waifu), a waifu's hair and headgear as his nearest: so a mod made for Soldat 1 looks the same on everyone"`,
+	original_soldiers: bool `jsoncomment:"every other player's soldier drawn as Soldat 1's, the male, whatever style its player picked (the female, rat, furry or waifu), a waifu's hair and headgear as his nearest: so a mod made for Soldat 1 looks the same on everyone; your own stays in the style you picked"`,
 	air_wind_up:       Air_Style `jsoncomment:"a jump's wind-up drawn as Soldat 1's (classic) or as the new airborne clips (fluid): what is drawn alone, the game's moves and hitboxes are Soldat 1's either way"`,
 	air_rising:        Air_Style `jsoncomment:"a soldier rising or hanging in the air after a jump, without jets: classic or fluid"`,
 	air_falling:       Fall_Style `jsoncomment:"a soldier falling without jets: ballerina, Soldat 1's fall, or fluid"`,

@@ -108,7 +108,8 @@ art_map_destroy :: proc(art: ^Art) {
 // leaves them out), the back scenery, the bullets behind the soldiers, the soldiers, the
 // things' sprites in front of them, the sparks, the middle scenery, the flags' cloth and
 // the kits over that, then the map's polygons and the front scenery over everything.
-draw_world :: proc(art: ^Art, game: ^sim.Game, frame: ^Frame, sparks: ^Sparks, camera: Camera, area: rl.Rectangle, graphics: ^res.Graphics_Settings) {
+// `me` is the player's own soldier, which graphics.original_soldiers leaves as it is.
+draw_world :: proc(art: ^Art, game: ^sim.Game, frame: ^Frame, sparks: ^Sparks, camera: Camera, area: rl.Rectangle, graphics: ^res.Graphics_Settings, me: sim.Soldier_Id) {
 	polymap := &game.polymap
 	seconds := rl.GetTime() // what pulses goes by it
 	sky := sky_of(polymap, graphics)
@@ -127,7 +128,7 @@ draw_world :: proc(art: ^Art, game: ^sim.Game, frame: ^Frame, sparks: ^Sparks, c
 	draw_polygons(art, polymap, .Background)
 	if graphics.scenery do draw_scenery(art, polymap, .Behind_Map)
 	draw_bullets(&art.bullets, &game.world, frame.alpha, graphics.grenade_color, graphics.trails)
-	draw_soldiers(art, game, frame, graphics.grenade_color, graphics.original_soldiers)
+	draw_soldiers(art, game, frame, graphics.grenade_color, graphics.original_soldiers, me)
 	draw_things(&art.things, game, .Sprites, frame.alpha, seconds)
 	draw_sparks(&art.sparks, sparks, frame.alpha)
 	draw_scenery(art, polymap, .Behind_Players)
