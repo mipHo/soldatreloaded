@@ -180,7 +180,7 @@ server_say_to :: proc(sv: ^Server, slot: game.Soldier_Id, kind: net.Chat_Kind, c
 say_as :: proc(sv: ^Server, slot: game.Soldier_Id, text: string) {
 	if text == "" do return
 	log.infof("%s: %s", utils.short_string_text(&sv.players[slot].name), text)
-	m := net.Msg_Chat{slot = slot}
+	m := net.Msg_Chat{slot = slot, name = sv.players[slot].name}
 	utils.short_string_set(&m.text, text)
 	broadcast(sv, .Chat, net.msg_chat, &m)
 }

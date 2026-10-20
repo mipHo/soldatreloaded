@@ -235,11 +235,12 @@ say :: proc(match: ^Match, team, taunt: bool, text: string) {
 // the console as "[Name] text" in the chat's colour, "(TEAM) [Name] text" in the team's,
 // a long line in two; and over the speaker's head. What I have muted doesn't reach my
 // screen; my own lines always do.
-chat_heard :: proc(match: ^Match, slot: sim.Soldier_Id, team, taunt: bool, text: string) {
+chat_heard :: proc(match: ^Match, slot: sim.Soldier_Id, team, taunt: bool, text: string, name := "") {
 	text, team := text, team
 	names := soldier_names(match)
 	speaker := &match.game.world.soldiers[slot]
-	if slot != match.me && mute_hides(match, names[slot], speaker.team, taunt) do return
+	who := name if name != "" else names[slot] // the name carried with the line, else the roster's (own and offline lines carry none)
+	if slot != match.me && mute_hides(match, who, speaker.team, taunt) do return
 	// a radio call: its words heard as (RADIO), its call over the radio, a few seconds
 	// apart at most
 	radio := team && len(text) >= 3 && text[0] == '*' && text[1] >= '1' && text[1] <= '3' && text[2] >= '1' && text[2] <= '3'
@@ -258,9 +259,9 @@ chat_heard :: proc(match: ^Match, slot: sim.Soldier_Id, team, taunt: bool, text:
 	prefix := "(RADIO) " if radio else "(TEAM) " if team else ""
 	feed := &match.hud.feed
 	if len(text) < MORE_CHAT_TEXT {
-		hud.console_add(feed, color, fmt.tprintf("%s[%s] %s", prefix, names[slot], text))
+		hud.console_add(feed, color, fmt.tprintf("%s[%s] %s", prefix, who, text))
 	} else {
-		hud.console_add(feed, color, fmt.tprintf("%s[%s] ", prefix, names[slot]))
+		hud.console_add(feed, color, fmt.tprintf("%s[%s] ", prefix, who))
 		hud.console_add(feed, color, fmt.tprintf(" %s", text))
 	}
 	spaces := strings.count(text, " ")
@@ -273,7 +274,7 @@ chat_heard :: proc(match: ^Match, slot: sim.Soldier_Id, team, taunt: bool, text:
 line_heard :: proc(match: ^Match, m: ^network.Msg_Chat) {
 	text := utils.short_string_text(&m.text)
 	if slot, is_player := m.slot.?; is_player {
-		chat_heard(match, slot, m.team, m.taunt, text)
+		chat_heard(match, slot, m.team, m.taunt, text, utils.short_string_text(&m.name))
 		return
 	}
 	feed := &match.hud.feed

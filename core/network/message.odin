@@ -119,6 +119,7 @@ Chat_Kind :: enum u8 {
 
 Msg_Chat :: struct {
 	slot:  Maybe(game.Soldier_Id), // who said it; nil for the server, whose lines are of `kind`
+	name:  Name,                   // the sender's, carried with the line so it never waits on the snapshot roster; a player's only (slot set)
 	team:  bool,                   // a player's, to its team alone
 	taunt: bool,                   // a player's said by a bind (a taunt, a radio call), not typed: a mute lets it through
 	kind:  Chat_Kind,              // the server's; nothing for a player's
@@ -128,6 +129,7 @@ Msg_Chat :: struct {
 
 msg_chat :: proc(b: ^Buffer, m: ^Msg_Chat) {
 	net_maybe_slot(b, &m.slot)
+	if _, player := m.slot.?; player do net_string(b, &m.name) // a player's line brings the sender's name
 	net_bool(b, &m.team)
 	net_bool(b, &m.taunt)
 	net_enum(b, &m.kind)

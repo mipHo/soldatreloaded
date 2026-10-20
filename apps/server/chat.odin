@@ -25,6 +25,7 @@ chat :: proc(sv: ^Server, slot: game.Soldier_Id, e: ^net.Event) {
 	if !net.buffer_done(&b) do return
 
 	m.slot = slot // whatever it claimed, it is who it is
+	m.name = player.name // carried with the line, so the receiver names it even before its soldier arrives whole
 	m.kind = .Server
 	m.color = {}
 	text := utils.short_string_text(&m.text)
