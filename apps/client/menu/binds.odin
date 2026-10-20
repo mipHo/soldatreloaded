@@ -115,7 +115,7 @@ Taunt :: struct {
 	slot:     int, // its key's place in TAUNT_SLOT_KEYS
 	modifier: Taunt_Modifier,
 	mode:     Taunt_Mode,
-	text:     string, // the message, Chat and Team's
+	text:     string, // the message (Chat and Team), or Radio's custom words; empty Radio says the call's own
 	radio:    int,    // Radio's call: (call - 1) * 3 + place, 1 to 9
 	emote:    int,    // Emote's, its place in EMOTES
 }
@@ -133,7 +133,7 @@ taunt_at :: proc(config: ^res.Client_Config, slot: int) -> (taunt: Taunt, found:
 		if !bound do continue
 		taunt = {slot = slot, modifier = modifier}
 
-		// a radio call: radio <call> <place>, any words after them left out
+		// a radio call: radio <call> <place> [words]; words after the place are its custom text
 		if len(text) >= 5 && strings.equal_fold(text[:5], "radio") {
 			rest := text[5:]
 			call, place: int
@@ -142,16 +142,24 @@ taunt_at :: proc(config: ^res.Client_Config, slot: int) -> (taunt: Taunt, found:
 				if place, rest, ok = radio_digit(rest); ok && (rest == "" || rest[0] == ' ') {
 					taunt.mode = .Radio
 					taunt.radio = (call - 1) * 3 + place
+					taunt.text = strings.trim_left(rest, " ")
 					return taunt, true
 				}
 			}
 		}
 		// an emote: emote <name>, one of EMOTES
-		if rest, is := word_after(text, "emote"); is {
+		if after, is := word_after(text, "emote"); is {
+				rest := strings.trim_space(after)
+				say_text := ""
+				if semi := strings.index_byte(after, ';'); semi >= 0 {
+					rest = strings.trim_space(after[:semi])
+					if s, said := word_after(strings.trim_space(after[semi + 1:]), "say"); said do say_text = s
+				}
 			for emote, i in EMOTES {
 				if !strings.equal_fold(rest, emote.name) do continue
 				taunt.mode = .Emote
 				taunt.emote = i
+				taunt.text = say_text
 				return taunt, true
 			}
 		}
@@ -187,8 +195,24 @@ taunt_at :: proc(config: ^res.Client_Config, slot: int) -> (taunt: Taunt, found:
 // The bind's text for a taunt: `say` or `say_team` and the message,
 // `radio <call> <place>`, the radio menu's call, or `emote <name>`. For this frame.
 taunt_compose :: proc(mode: Taunt_Mode, text: string, radio: int, emote: int) -> string {
-	if mode == .Radio do return fmt.tprintf("radio %d %d", (radio - 1) / 3 + 1, (radio - 1) % 3 + 1)
-	if mode == .Emote do return fmt.tprintf("emote %s", EMOTES[clamp(emote, 0, len(EMOTES) - 1)].name)
+	message := clean_message(text)
+	if mode == .Emote {
+		name := EMOTES[clamp(emote, 0, len(EMOTES) - 1)].name
+		// the emote alone, or the emote then the words said to everyone (two commands, split at the ';')
+		return fmt.tprintf("emote %s", name) if message == "" else fmt.tprintf("emote %s; say %s", name, message)
+	}
+	if mode == .Radio {
+		call, place := (radio - 1) / 3 + 1, (radio - 1) % 3 + 1
+		// empty says the call's own words (radio_call); words after it are the custom text
+		return fmt.tprintf("radio %d %d", call, place) if message == "" else fmt.tprintf("radio %d %d %s", call, place, message)
+	}
+	if mode == .Team do return fmt.tprintf("say_team %s", message)
+	return fmt.tprintf("say %s", message)
+}
+
+// A message with what a console line can't carry taken out: a `"` ends a quoted word, a
+// `;` ends the command, and `//` comments the rest away (it becomes a space).
+clean_message :: proc(text: string) -> string {
 	clean := strings.builder_make(context.temp_allocator)
 	for i := 0; i < len(text); i += 1 {
 		switch {
@@ -200,9 +224,7 @@ taunt_compose :: proc(mode: Taunt_Mode, text: string, radio: int, emote: int) ->
 			strings.write_byte(&clean, text[i])
 		}
 	}
-	message := strings.to_string(clean)
-	if mode == .Team do return fmt.tprintf("say_team %s", message)
-	return fmt.tprintf("say %s", message)
+	return strings.to_string(clean)
 }
 
 // The slot's `modifier` combo bound to `text` ("" unbinds it), the slot's other combos

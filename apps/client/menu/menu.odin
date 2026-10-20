@@ -163,6 +163,7 @@ menu_init :: proc(menu: ^Menu, config: ^res.Client_Config, mod: res.Mod, last_ma
 	for info, weapon in sim.weapons_default() do menu.weapon_names[weapon] = info.name
 	offline_init(&menu.offline, last_map)
 	menu.taunts.slot = -1
+	menu.taunts.modifier = taunts_modifier(menu.config) // the one the taunts are already on
 	go_page(menu, .Settings if in_game else .Servers)
 }
 

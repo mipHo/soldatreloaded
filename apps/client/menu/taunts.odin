@@ -3,33 +3,33 @@ package menu
 import "core:fmt"
 import "core:strings"
 
+import res "../../../core/resources"
 import "../ui"
 
-// The taunt editor: on the left, the taunts there are, in the slots' order; on the
-// right, what the key does (chat, team chat, a radio call or an emote), its message, its
-// call or its emote, then the keyboard, whose key the combo is bound on. Update writes the
-// loaded taunt into the config, Clear unbinds it (Delete too).
+// The taunt editor: the modifier every taunt key is held with (Alt, Ctrl or Shift), then
+// the keyboard of taunt keys, then one line for the key picked from it — what it does
+// (chat, a radio call or an emote), which (everyone or the team; the call; the emote), and
+// the words it says. Everything binds at once, nothing to save; Delete or Remove unbinds.
+// A radio call left wordless says its own; an emote's words, if any, go to everyone.
 
 Taunt_Editor :: struct {
-	slot:     int, // the taunt loaded, -1 for none
-	modifier: Taunt_Modifier,
+	slot:     int, // the taunt the keyboard has picked, -1 for none
+	modifier: Taunt_Modifier, // the one every taunt is held with; changing it moves them all
 	mode:     Taunt_Mode,
 	radio:    int,    // Radio's call, 1 to 9, 0 for none picked yet
 	emote:    int,    // Emote's, its place in EMOTES
-	text:     string, // the message being edited, Chat and Team's
+	text:     string, // the words being edited
 }
 
 TAUNT_TEXT_MAX :: 255
 
 @(rodata)
-TAUNT_MODE_NAMES := [Taunt_Mode]string {
-	.Chat  = "Chat",
-	.Team  = "Team chat",
-	.Radio = "Radio",
-	.Emote = "Emote",
-}
-@(rodata)
 TAUNT_MODIFIER_NAMES := [?]string{"Alt", "Ctrl", "Shift"}
+// The three types a key's line chooses between; Chat's own line is to everyone or the team.
+@(rodata)
+TAUNT_TYPE_NAMES := [?]string{"Chat", "Radio", "Emote"}
+@(rodata)
+CHAT_TARGET_NAMES := [?]string{"Everyone", "Team"}
 
 // The keyboard's rows: where each begins in the slots, and how many keys it has.
 @(rodata)
@@ -39,142 +39,166 @@ KEY_ROW_COUNT := [4]int{10, 10, 9, 7}
 
 page_taunts :: proc(menu: ^Menu) {
 	k := &menu.kit
-	u := k.ui
 	editor := &menu.taunts
-	x, w, top_y := k.x, k.w, k.y
-	two := w >= 560 // below that the two columns would be too narrow for the modes and the keyboard
-	col_w := (w - 20) / 2 if two else w
-	ends := [2]f32{top_y, top_y}
 
-	k.w = col_w
-	ui.section(k, "TAUNTS")
-	any := false
-	for slot in 0 ..< TAUNT_SLOTS {
-		if taunt, found := taunt_at(menu.config, slot); found {
-			any = true
-			taunt_row(menu, slot, taunt)
-		}
+	ui.section(k, "HELD WITH")
+	{ // the modifier every taunt key is held with; changing it moves every taunt to it
+		mod := int(editor.modifier)
+		if chip_row(k, "Key", TAUNT_MODIFIER_NAMES[:], &mod) do taunts_set_modifier(menu, Taunt_Modifier(mod))
 	}
-	if !any {
+
+	ui.section(k, "TAUNT KEYS")
+	taunt_keyboard(menu)
+
+	if editor.slot < 0 {
 		if r := ui.row(k, ui.ROW_H, false); r.shown {
-			ui.text_fit(k, ui.BODY, "None yet: pick a key on the keyboard and type what it says.", r.x + 10, r.y + r.h / 2, r.w - 20, ui.MUTED)
+			ui.text_fit(k, ui.BODY, "Pick a key above, then set what it does below. It binds as you go — nothing to save.", r.x + 10, r.y + r.h / 2, r.w - 20, ui.MUTED)
 		}
+		return
 	}
-	ui.gap(k, 6)
-	ends[0] = k.y
 
-	k.x = x + col_w + 20 if two else x
-	k.y = top_y if two else ends[0]
-	ui.section(k, "EDIT")
-	{ // the four modes, one of them always on, on a second row when the column is narrow
-		r := ui.row(k, ui.ROW_H, false)
-		cx := r.x
-		for name, mode in TAUNT_MODE_NAMES {
-			if cx > r.x && cx + ui.chip_w(k, name) > r.x + r.w {
-				r = ui.row(k, ui.ROW_H, false)
-				cx = r.x
-			}
-			if ui.chip(k, cx, r.y + (r.h - ui.CTRL_H) / 2, name, editor.mode == mode) do editor.mode = mode
-			cx += ui.chip_w(k, name) + 8
-		}
+	combo := fmt.tprintf("%s + %s", TAUNT_MODIFIER_NAMES[editor.modifier], strings.to_upper(TAUNT_SLOT_KEYS[editor.slot], context.temp_allocator))
+	ui.section(k, combo)
+	taunt_line(menu)
+
+	if r := ui.row(k, ui.ROW_H, true); r.shown {
+		bw := ui.button_w(k, "Remove")
+		if ui.button_at(k, ui.ctrl_x(r) + ui.ctrl_w(r) - bw, ui.ctrl_y(r), bw, ui.CTRL_H, "Remove", false, false) do taunt_clear(menu)
+		ui.text_fit(k, ui.BODY, "or press Delete", ui.ctrl_x(r), r.y + r.h / 2, ui.ctrl_w(r) - bw - 10, ui.MUTED)
 	}
-	if editor.mode == .Radio { // the call, picked from the config's as the radio menu has them
+}
+
+// The one line for the picked key: a type dropdown, a target dropdown (which chat, which
+// call, which emote) and the words. Any change binds the key at once.
+@(private = "file")
+taunt_line :: proc(menu: ^Menu) {
+	k := &menu.kit
+	editor := &menu.taunts
+	changed := false
+
+	r := ui.row(k, ui.ROW_H, false)
+	y := ui.ctrl_y(r)
+	x0, w := r.x + 10, r.w - 20 // the whole row, left-aligned: no label column eats the left
+	GAP :: 8
+	type_w := f32(84)
+	avail := w - type_w - 2 * GAP
+	target_w := clamp(avail * 0.45, 110, 160)
+	tx := x0
+	gx := x0 + type_w + GAP
+	fx := gx + target_w + GAP
+	text_w := max(x0 + w - fx, 80)
+
+	// type: Chat, Radio or Emote
+	kind := 1 if editor.mode == .Radio else 2 if editor.mode == .Emote else 0
+	if picked := ui.dropdown_at(k, tx, y, type_w, TAUNT_TYPE_NAMES[:], kind); picked >= 0 && picked != kind {
+		switch picked {
+		case 0: editor.mode = .Chat
+		case 1: editor.mode = .Radio; editor.radio = max(editor.radio, 1)
+		case 2: editor.mode = .Emote
+		}
+		kind = picked
+		changed = true
+	}
+
+	// target: which chat, which call, or which emote
+	placeholder := "What the key says"
+	switch kind {
+	case 0: // chat: to everyone or the team
+		cur := 1 if editor.mode == .Team else 0
+		if picked := ui.dropdown_at(k, gx, y, target_w, CHAT_TARGET_NAMES[:], cur); picked >= 0 && picked != cur {
+			editor.mode = .Team if picked == 1 else .Chat
+			changed = true
+		}
+	case 1: // radio: the config's calls, as the radio menu has them
 		names: [9]string
-		calls := [3]^type_of(menu.config.radio.call_1){&menu.config.radio.call_1, &menu.config.radio.call_2, &menu.config.radio.call_3}
+		calls := radio_calls(menu)
 		for i in 1 ..= 9 {
 			call := calls[(i - 1) / 3]
-			// cut to the box's room: the radio's own lines in the game show them whole
-			names[i - 1] = fmt.tprintf("%s - %s", cut(call.name, 20), cut(call.places[(i - 1) % 3], 12))
+			names[i - 1] = fmt.tprintf("%s - %s", cut(call.name, 18), cut(call.places[(i - 1) % 3], 12))
 		}
-		if picked := ui.select_box(k, "Call", names[:], nil, max(editor.radio, 1) - 1); picked >= 0 do editor.radio = picked + 1
-	} else if editor.mode == .Emote { // the emote, as the game names them
+		cur := max(editor.radio, 1) - 1
+		if picked := ui.dropdown_at(k, gx, y, target_w, names[:], cur); picked >= 0 {
+			editor.radio = picked + 1
+			changed = true
+		}
+		placeholder = fmt.tprintf("Says: %s", radio_words(menu, max(editor.radio, 1)))
+	case 2: // emote
 		names: [len(EMOTES)]string
 		for emote, i in EMOTES do names[i] = emote.title
-		if picked := ui.select_box(k, "Emote", names[:], nil, editor.emote); picked >= 0 do editor.emote = picked
-	} else { // the message, typed; what makes it a console line (quotes, semicolons) is left out
-		r := ui.row(k, ui.ROW_H, true)
-		if typed, changed := ui.field_box(k, r.id, r.focused, r.x + 10, ui.ctrl_y(r), r.w - 20, &editor.text, editor.text, TAUNT_TEXT_MAX, "What the key says", false); changed {
-			set_text(&editor.text, typed)
+		if picked := ui.dropdown_at(k, gx, y, target_w, names[:], editor.emote); picked >= 0 {
+			editor.emote = picked
+			changed = true
 		}
-		if ui.edit_entered(k, &editor.text) do taunt_update(menu) // Enter in the message is the Update button
+		placeholder = "Say too (optional)"
 	}
-	if picked := ui.select_box(k, "Modifier", TAUNT_MODIFIER_NAMES[:], nil, int(editor.modifier)); picked >= 0 {
-		editor.modifier = Taunt_Modifier(picked)
+
+	// the words: the message, the radio's own words, or an emote's line to everyone
+	fid := ui.nav_next(k)
+	focused := ui.nav_focused(k, fid, y, ui.CTRL_H)
+	if typed, did := ui.field_box(k, fid, focused, fx, y, text_w, &editor.text, editor.text, TAUNT_TEXT_MAX, placeholder, false); did {
+		set_text(&editor.text, typed)
+		changed = true
 	}
-	ui.section(k, "KEY")
-	{ // the 36 keys, as the number row and the qwerty rows; a taunt's key is tinted
-		KEY_GAP :: 5
-		KH :: 24
-		kw := min(28, (col_w - 9 * KEY_GAP) / 10)
-		for row_i in 0 ..< 4 {
-			r := ui.row(k, KH + 6, false)
-			count := KEY_ROW_COUNT[row_i]
-			row_w := f32(count) * kw + f32(count - 1) * KEY_GAP
-			kx := r.x + (r.w - row_w) / 2
-			for key in 0 ..< count {
-				slot := KEY_ROW_FIRST[row_i] + key
-				_, bound := taunt_at(menu.config, slot)
-				selected := editor.slot == slot
-				id := ui.nav_next(k)
-				focused := ui.nav_focused(k, id, r.y, KH)
-				hot := ui.over(k, kx, r.y, kw, KH)
-				if (r.shown && ui.take(k, id, kx, r.y, kw, KH)) || ui.take_enter(k, focused) do taunt_load(menu, slot)
-				if r.shown {
-					ui.focus_ring(k, focused, kx, r.y, kw, KH, ui.RADIUS)
-					fill := ui.ACCENT_SOFT if selected else {232, 80, 30, 22} if bound else ui.CONTROL_HOT if hot else ui.CONTROL
-					edge := ui.ACCENT if selected else ui.with_alpha(ui.ACCENT, 140) if bound else ui.BORDER
-					ui.box(u, kx, r.y, kw, KH, fill, edge)
-					ui.text_mid(k, ui.BOLD, strings.to_upper(TAUNT_SLOT_KEYS[slot], context.temp_allocator), kx + kw / 2, r.y + KH / 2, ui.TEXT if bound || selected else ui.MUTED)
-				}
-				kx += kw + KEY_GAP
+
+	if k.erase do taunt_clear(menu) // Delete unbinds the key
+	else if changed do taunt_apply(menu)
+}
+
+// The 36 keys, the number row then the qwerty rows: a bound key tinted, the picked one
+// lit; clicking or Enter picks it into the editor.
+@(private = "file")
+taunt_keyboard :: proc(menu: ^Menu) {
+	k := &menu.kit
+	u := k.ui
+	editor := &menu.taunts
+	KEY_GAP :: 5
+	KH :: 24
+	kw := min(34, (k.w - 9 * KEY_GAP) / 10)
+	for row_i in 0 ..< 4 {
+		r := ui.row(k, KH + 6, false)
+		count := KEY_ROW_COUNT[row_i]
+		row_w := f32(count) * kw + f32(count - 1) * KEY_GAP
+		kx := r.x + (r.w - row_w) / 2
+		for key in 0 ..< count {
+			slot := KEY_ROW_FIRST[row_i] + key
+			_, bound := taunt_at(menu.config, slot)
+			selected := editor.slot == slot
+			id := ui.nav_next(k)
+			focused := ui.nav_focused(k, id, r.y, KH)
+			hot := ui.over(k, kx, r.y, kw, KH)
+			if (r.shown && ui.take(k, id, kx, r.y, kw, KH)) || ui.take_enter(k, focused) do taunt_load(menu, slot)
+			if r.shown {
+				ui.focus_ring(k, focused, kx, r.y, kw, KH, ui.RADIUS)
+				fill := ui.ACCENT_SOFT if selected else {232, 80, 30, 22} if bound else ui.CONTROL_HOT if hot else ui.CONTROL
+				edge := ui.ACCENT if selected else ui.with_alpha(ui.ACCENT, 140) if bound else ui.BORDER
+				ui.box(u, kx, r.y, kw, KH, fill, edge)
+				ui.text_mid(k, ui.BOLD, strings.to_upper(TAUNT_SLOT_KEYS[slot], context.temp_allocator), kx + kw / 2, r.y + KH / 2, ui.TEXT if bound || selected else ui.MUTED)
 			}
+			kx += kw + KEY_GAP
 		}
 	}
 	ui.gap(k, 6)
-	ends[1] = k.y
-
-	k.x, k.w = x, w
-	k.y = max(ends[0], ends[1])
-	k.scrolling = false
-	none := editor.slot < 0
-	if k.erase do taunt_clear(menu) // Delete clears the loaded taunt
-	pressed, bx := big_button(menu, x + w, "UPDATE", true, none)
-	if pressed {
-		taunt_update(menu)
-	} else if cleared, _ := big_button(menu, bx - 12, "CLEAR", false, none); cleared {
-		taunt_clear(menu)
-	}
 }
 
-// A taunt as its list row reads: the combo, as Alt+Q, what it is (a radio call, an
-// emote, or said to everyone or the team) and its words. A click, or Enter, loads it into the
-// editor.
+// A labelled row of chips, one always on; `value` is its index. True when it changed.
 @(private = "file")
-taunt_row :: proc(menu: ^Menu, slot: int, taunt: Taunt) {
-	k := &menu.kit
-	u := k.ui
-	r := ui.row(k, ui.ROW_H, true)
-	if (r.shown && ui.take(k, r.id, r.x, r.y, r.w, r.h)) || ui.take_enter(k, r.focused) do taunt_load(menu, slot)
-	if !r.shown do return
-	combo := fmt.tprintf("%s+%s", TAUNT_MODIFIER_NAMES[taunt.modifier], strings.to_upper(TAUNT_SLOT_KEYS[slot], context.temp_allocator))
-	what := TAUNT_MODE_NAMES[taunt.mode]
-	cy, cx := r.y + r.h / 2, r.x + 10
-	cw := min(ui.width_of(u, ui.BOLD, combo), 88)
-	ui.text_fit(k, ui.BOLD, combo, cx, cy, cw, ui.TEXT)
-	cx += cw + 12
-	ww := min(ui.width_of(u, ui.BODY, what), 110)
-	ui.text_fit(k, ui.BODY, what, cx, cy, ww, ui.ACCENT if taunt.mode == .Radio || taunt.mode == .Emote else ui.MUTED)
-	cx += ww + 12
-	text := taunt.text
-	#partial switch taunt.mode {
-	case .Radio: text = radio_words(menu, taunt.radio)
-	case .Emote: text = EMOTES[taunt.emote].title
+chip_row :: proc(k: ^ui.Kit, label: string, names: []string, value: ^int) -> (changed: bool) {
+	r := ui.row(k, ui.ROW_H, false)
+	cy := r.y + (r.h - ui.CTRL_H) / 2
+	ui.text_fit(k, ui.BODY, label, r.x, r.y + r.h / 2, 40, ui.MUTED)
+	cx := ui.ctrl_x(r) + 44
+	for name, i in names {
+		if ui.chip(k, cx, cy, name, value^ == i) && value^ != i {
+			value^ = i
+			changed = true
+		}
+		cx += ui.chip_w(k, name) + 8
 	}
-	ui.text_fit(k, ui.BODY, text, cx, cy, r.w - 10 - cx + r.x, ui.MUTED)
+	return
 }
 
-// The editor's taunt: the slot's bind, or a new taunt on `slot` (chat, on alt) when
-// nothing is bound there.
+// The editor set to the key's taunt, or emptied for a fresh one. The modifier is the
+// global one, not the taunt's own.
 @(private = "file")
 taunt_load :: proc(menu: ^Menu, slot: int) {
 	editor := &menu.taunts
@@ -182,40 +206,67 @@ taunt_load :: proc(menu: ^Menu, slot: int) {
 	editor.slot = slot
 	taunt, found := taunt_at(menu.config, slot)
 	if !found do taunt = {}
-	editor.modifier = taunt.modifier
 	editor.mode = taunt.mode
 	editor.radio = taunt.radio
 	editor.emote = taunt.emote
 	set_text(&editor.text, taunt.text)
 }
 
-// The loaded taunt written back: its radio call, its emote, or its message; the slot
-// unbound when the message is empty. The game saves it with the rest as it closes.
+// The editor's taunt bound to its key at once, at the global modifier: its call, emote or
+// message. A chat line with no message unbinds; a radio call stands on its own.
 @(private = "file")
-taunt_update :: proc(menu: ^Menu) {
+taunt_apply :: proc(menu: ^Menu) {
 	editor := &menu.taunts
 	if editor.slot < 0 do return
-	if editor.mode == .Radio do editor.radio = max(editor.radio, 1) // the box shows the first call when none was picked
+	if editor.mode == .Radio do editor.radio = max(editor.radio, 1)
 	said := editor.mode == .Chat || editor.mode == .Team
 	text := taunt_compose(editor.mode, editor.text, editor.radio, editor.emote) if !said || editor.text != "" else ""
 	taunt_set(menu, editor.slot, editor.modifier, text)
 }
 
-// The loaded taunt unbound, and the editor emptied.
+// The picked key unbound, its editor kept so another does can be set on it at once.
 @(private = "file")
 taunt_clear :: proc(menu: ^Menu) {
 	editor := &menu.taunts
 	if editor.slot < 0 do return
 	taunt_set(menu, editor.slot, editor.modifier, "")
-	taunt_load(menu, editor.slot)
+	set_text(&editor.text, "")
+	editor.mode = .Chat
 }
 
-// A radio call's own words, `radio` 1 to 9: the call's name and its place's, as the
-// radio menu says them.
+// The modifier every taunt is held with changed to `new`: each taunt moves from the old
+// combo to the new one, and the editor remembers it.
+@(private = "file")
+taunts_set_modifier :: proc(menu: ^Menu, new: Taunt_Modifier) {
+	if new == menu.taunts.modifier do return
+	for slot in 0 ..< TAUNT_SLOTS {
+		if taunt, found := taunt_at(menu.config, slot); found {
+			taunt_set(menu, slot, new, taunt_compose(taunt.mode, taunt.text, taunt.radio, taunt.emote))
+		}
+	}
+	menu.taunts.modifier = new
+}
+
+// The modifier the taunts are on, for the editor to open at: the first found taunt's, or
+// Alt when there are none.
+taunts_modifier :: proc(config: ^res.Client_Config) -> Taunt_Modifier {
+	for slot in 0 ..< TAUNT_SLOTS {
+		if taunt, found := taunt_at(config, slot); found do return taunt.modifier
+	}
+	return .Alt
+}
+
+// The config's three radio calls, in order.
+@(private = "file")
+radio_calls :: proc(menu: ^Menu) -> [3]^type_of(menu.config.radio.call_1) {
+	return {&menu.config.radio.call_1, &menu.config.radio.call_2, &menu.config.radio.call_3}
+}
+
+// A radio call's own words, `radio` 1 to 9: the call's name and its place's, as the radio
+// menu says them.
 @(private = "file")
 radio_words :: proc(menu: ^Menu, radio: int) -> string {
-	calls := [3]^type_of(menu.config.radio.call_1){&menu.config.radio.call_1, &menu.config.radio.call_2, &menu.config.radio.call_3}
-	call := calls[(radio - 1) / 3]
+	call := radio_calls(menu)[(radio - 1) / 3]
 	return fmt.tprintf("%s %s", call.name, call.places[(radio - 1) % 3])
 }
 

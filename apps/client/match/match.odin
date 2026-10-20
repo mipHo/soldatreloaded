@@ -373,7 +373,15 @@ keys :: proc(match: ^Match, config: ^res.Client_Config, sounds: ^sound.Sound) {
 			return
 		}
 	}
-	for action in sa.slice(&actions) do command_run(match, action)
+	// a bind may hold several commands, divided by ';' (a taunt that emotes and says a line)
+	for action in sa.slice(&actions) {
+		rest := action
+		for rest != "" {
+			part, _, after := strings.partition(rest, ";")
+			command_run(match, strings.trim_space(part))
+			rest = after
+		}
+	}
 }
 
 // One tick: the world stepped (by its own lights offline, by the server's word online, by

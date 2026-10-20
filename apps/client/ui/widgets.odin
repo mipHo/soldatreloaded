@@ -217,6 +217,32 @@ select_box :: proc(k: ^Kit, label: string, names: []string, locked: []bool, curr
 	return picked
 }
 
+// A dropdown with no row or label of its own, at the geometry given: for several on one
+// line. Returns the item picked this pass (>= 0), else -1, as select_box does.
+dropdown_at :: proc(k: ^Kit, x, y, w: f32, names: []string, current: int) -> int {
+	count := len(names)
+	id := nav_next(k)
+	focused := nav_focused(k, id, y, CTRL_H)
+	picked := take_picked(k, id)
+	if side := take_side(k, focused); side != 0 && count > 0 {
+		picked = (current + side + count) % count
+	}
+	open := k.popup.kind == .List && k.popup.owner == id
+	hot := over(k, x, y, w, CTRL_H)
+	if take(k, id, x, y, w, CTRL_H) || take_enter(k, focused) {
+		if open do popup_close(k)
+		else do popup_open_list(k, id, names, nil, current, x, y, w)
+		open = !open
+	}
+	if open do popup_fill_list(k, names, nil)
+	focus_ring(k, focused, x, y, w, CTRL_H, RADIUS)
+	box(k.ui, x, y, w, CTRL_H, CONTROL_HOT if hot || open else CONTROL, with_alpha(ACCENT, 200) if open else BORDER)
+	shown := names[current] if current >= 0 && current < count else ""
+	text_fit(k, BODY, shown, x + 8, y + CTRL_H / 2, w - 24, TEXT)
+	chevron(k.ui, x + w - 11, y + CTRL_H / 2, 6, !open, ACCENT if open else MUTED)
+	return picked
+}
+
 // An enum's value, its names in its order, the locked (nil for none) shown but never
 // set. The value the list's highlight previews.
 enum_select :: proc(k: ^Kit, label: string, value: ^$E, names: []string, locked: []bool = nil) -> E where intrinsics.type_is_enum(E) {
