@@ -414,10 +414,11 @@ shown :: proc(match: ^Match, config: ^res.Client_Config, sounds: ^sound.Sound) {
 		if config.graphics.weather && playing {
 			draw.sparks_weather(&match.sparks, &game.polymap, match.camera, game.world.tick)
 		}
-		// heard from whom the camera follows: me, the player I watch, or the free camera
-		sound.sound_tick(sounds, game, match.me, watched(match), match.camera.pos, &match.sparks)
+		// heard from whom the camera follows: me, the player I watch, or the free camera.
+		// my own sounds are the point of view's, so a demo hears the watched player's
+		sound.sound_tick(sounds, game, point_of_view(match), watched(match), match.camera.pos, &match.sparks)
 	}
-	hud.feed_tick(&match.hud.feed, game, &names, match.me)
+	hud.feed_tick(&match.hud.feed, game, &names, point_of_view(match))
 	if ended, is_ended := game.round.phase.(sim.Ended); is_ended && ended.countdown == sim.ROUND_END_TICKS && match.mode == .Offline {
 		hud_round_ended(match) // online the server says so (Map_Change)
 	}

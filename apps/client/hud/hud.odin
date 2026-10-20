@@ -81,6 +81,12 @@ hud_draw :: proc(u: ^ui.Ui, hud: ^Hud, data: ^Hud_Data, minimap: ^draw.Minimap) 
 	art, feed, menus := &hud.art, &hud.feed, &hud.menus
 	me, mine := &data.players[data.me], &data.mine
 	playing := me.active && me.team != .Spectator
+	// the bars are the viewed player's (data.mine): mine as I play, and in a demo whoever
+	// I follow, even one I recorded as a spectator. The crosshair and arrow stay mine, for
+	// a soldier I control, so neither shows in a demo
+	viewed := &data.players[data.viewed]
+	_, demoing := data.demo.?
+	show_bars := playing || (demoing && viewed.active && viewed.team != .Spectator)
 	escape, team := .Escape in menus.open, .Team in menus.open
 	typing := data.prompt.mode != .None
 	defer rl.EndBlendMode()
@@ -88,8 +94,8 @@ hud_draw :: proc(u: ^ui.Ui, hud: ^Hud, data: ^Hud_Data, minimap: ^draw.Minimap) 
 	draw_world_texts(u, data) // of the world, under the rest
 	draw_big_message(u, feed)
 	draw_screen_texts(u, data)
+	if show_bars do draw_bars(u, art, mine)
 	if playing {
-		draw_bars(u, art, mine)
 		if !menus_any_open(menus) && !mine.dead && !data.ended do draw_crosshair(u, art, data) // gone as the round ends, as the original's
 		draw_my_arrow(u, art, data)
 	}

@@ -100,6 +100,15 @@ watched :: proc(match: ^Match) -> Maybe(sim.Soldier_Id) {
 	return match.watch.follow.? or_else match.me
 }
 
+// Whose soldier the HUD's own readouts (the bars) and the player's own sounds (the
+// respawn music, a flag returned) belong to. A demo has no local player: it is watched,
+// so the point of view is whom the camera follows (the recorder when it follows none).
+// Live, nothing is followed, so this is me; so the demo alone moves it off the recorder.
+point_of_view :: proc(match: ^Match) -> sim.Soldier_Id {
+	if match.mode == .Demo do return watched(match).? or_else match.me
+	return match.me
+}
+
 // Whether my aim is scoped: the shot fired from it snaps the view back within the tick,
 // so this is asked before it.
 scoped_now :: proc(match: ^Match) -> bool {

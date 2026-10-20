@@ -113,7 +113,7 @@ hud_data :: proc(match: ^Match, config: ^res.Client_Config) -> (data: hud.Hud_Da
 	data.me = match.me
 	data.viewed = watched(match).? or_else match.me // the standing follows whom I watch, so a spectator sees that player's kills, not their own
 	me := &world.soldiers[match.me]
-	data.mine = mine(game, me)
+	data.mine = mine(game, &world.soldiers[point_of_view(match)]) // the bars are the watched player's in a demo, not the recorder's
 	data.loadout = me.loadout
 	for info, weapon in game.resources.weapons do data.weapon_names[weapon] = info.name
 
