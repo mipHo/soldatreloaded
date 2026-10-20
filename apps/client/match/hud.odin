@@ -111,6 +111,7 @@ hud_data :: proc(match: ^Match, config: ^res.Client_Config) -> (data: hud.Hud_Da
 		}
 	}
 	data.me = match.me
+	data.viewed = watched(match).? or_else match.me // the standing follows whom I watch, so a spectator sees that player's kills, not their own
 	me := &world.soldiers[match.me]
 	data.mine = mine(game, me)
 	data.loadout = me.loadout

@@ -24,6 +24,7 @@ Hud_Data :: struct {
 	// everyone, me among them
 	players:      [sim.MAX_PLAYERS]Player,
 	me:           sim.Soldier_Id,
+	viewed:       sim.Soldier_Id, // whose stats the standing shows: the player I follow while watching, else me
 	mine:         Mine,
 	loadout:      sim.Loadout, // what the weapons menu has chosen for my next spawn
 	weapon_names: [res.Weapon]string,

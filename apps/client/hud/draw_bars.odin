@@ -64,8 +64,8 @@ draw_bars :: proc(u: ^ui.Ui, art: ^Art, mine: ^Mine) {
 	}
 }
 
-// The rounds left and the weapon's name, alive; and always my place, my kills against
-// the leader's, and the limit.
+// The rounds left and the weapon's name, alive; and always the place, the kills against
+// the leader's, and the limit of whoever I am watching (me, unless I follow a player).
 draw_bar_texts :: proc(u: ^ui.Ui, data: ^Hud_Data) {
 	mine := &data.mine
 	if !mine.dead {
@@ -83,11 +83,11 @@ draw_bar_texts :: proc(u: ^ui.Ui, data: ^Hud_Data) {
 	ranks := sa.slice(&ranked)
 	place := 0
 	for id, i in ranks {
-		if id == data.me do place = i + 1
+		if id == data.viewed do place = i + 1
 	}
 	at := [2]f32{STATUS.x * wide(u), STATUS.y}
 	if place > 0 do write(u, fmt.tprintf("%d/%d", place, len(ranks)), at, SMALL_FONT, PLACE_COLOR)
-	kills := data.players[data.me].kills
+	kills := data.players[data.viewed].kills
 	standing: string
 	if place == 1 && len(ranks) > 1 {
 		lead := kills - data.players[ranks[1]].kills
