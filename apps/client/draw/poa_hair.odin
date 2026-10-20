@@ -145,8 +145,11 @@ poa_project :: proc(n: hair.Node, dir: i32) -> [2]f32 {
 }
 
 // Called exactly once after each 60 Hz game tick, including invisible demo seeks. With
-// `original`, every soldier's hair but `me`'s as Soldat 1's (draw_soldiers).
-poa_hair_tick :: proc(art: ^Art, game: ^sim.Game, original := false, me: sim.Soldier_Id = 0) {
+// `original`, every soldier's hair but `me`'s as Soldat 1's (draw_soldiers). Online,
+// `offsets` are what each soldier's corrections still have to show (frame_build's): the
+// hair hangs from the head where it is drawn, so a correction's jump of the served
+// position, which the drawn body eases through, doesn't whip the strands each time.
+poa_hair_tick :: proc(art: ^Art, game: ^sim.Game, original := false, me: sim.Soldier_Id = 0, offsets: ^[sim.MAX_PLAYERS]utils.Vec2 = nil) {
 	h := &art.gostek.poa
 	if game.world.tick < h.last_tick {
 		for &player in h.players do player.ready = false
@@ -162,7 +165,8 @@ poa_hair_tick :: proc(art: ^Art, game: ^sim.Game, original := false, me: sim.Sol
 		if !soldier.active || pkg == nil { p.ready = false; continue }
 		// the head as it is drawn, the airborne clips' over the game's (air_pose.odin), so
 		// the hair hangs from the head seen
-		joints := visual_soldier_pose(game.resources.animations, art.air_animations, &soldier, soldier.body.pos, game.world.tick, &art.air_transitions[id], &art.air_tuning, art.air_styles)
+		pos := soldier.body.pos + (offsets[id] if offsets != nil else {})
+		joints := visual_soldier_pose(game.resources.animations, art.air_animations, &soldier, pos, game.world.tick, &art.air_transitions[id], &art.air_tuning, art.air_styles)
 		if corpse := &game.world.corpses[id]; soldier.vitals.dead && corpse.active {
 			copy(joints[:], corpse.points[:])
 		}

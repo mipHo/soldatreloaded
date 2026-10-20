@@ -401,7 +401,10 @@ shown :: proc(match: ^Match, config: ^res.Client_Config, sounds: ^sound.Sound) {
 	game := match.game
 	for &soldier, id in game.world.soldiers do draw.air_transition_step(&match.art.air_transitions[id], &soldier, match.art.air_tuning, 1.0/60, &match.before.soldiers[id], game.resources.animations)
 	match.art.air_styles = res.air_styles_of(&config.graphics)
-	draw.poa_hair_tick(&match.art, game, config.graphics.original_soldiers, match.me) // after the airborne poses' blend, whose head the hair hangs from
+	// after the airborne poses' blend, whose head the hair hangs from; online, where the
+	// head is drawn, the corrections eased (frame_build's offsets)
+	offsets := &match.line.stream.blend if match.mode == .Online else nil
+	draw.poa_hair_tick(&match.art, game, config.graphics.original_soldiers, match.me, offsets)
 	names := soldier_names(match)
 	match.hud.feed.console_length = int(config.interface.console_lines)
 	match.hud.feed.kill_length = int(config.interface.kill_log_length)
