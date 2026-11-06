@@ -104,6 +104,7 @@ Chain_Style :: enum {
 Control_Settings :: struct {
 	sensitivity:       f32 `jsoncomment:"the mouse's speed"`,
 	legacy_flag_throw: bool `jsoncomment:"jump and crouch held together (w+s) throw the flag too, as older versions did"`,
+	prone_press:       bool `jsoncomment:"the prone key counts once each time it is pressed, however long it is held: down, and up only when pressed again. Off, a held key goes down and up over and over, as in Soldat"`,
 }
 
 // The mouse's speed the settings allow, its slider's and the `sensitivity` command's.

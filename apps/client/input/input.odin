@@ -131,6 +131,9 @@ input_poll :: proc(input: ^Input, config: ^res.Client_Config, view: [2]f32, menu
 		}
 	}
 	if typing do input.held &= was_held // only let go of: what goes down is the chat's
+	// the prone key once a press (controls.prone_press): the press alone goes to a tick,
+	// so a key held on doesn't bring the soldier up again, and down, and up
+	if config.controls.prone_press do input.held -= {.Prone}
 	if !controls do input.pressed = {} // nor a press from before the menu came up
 	return
 }

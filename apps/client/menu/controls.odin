@@ -74,6 +74,7 @@ page_controls :: proc(menu: ^Menu) {
 	k.y = max(ends[0], ends[1])
 	ui.gap(k, 6)
 	ui.toggle(k, "Legacy flag throw (w+s to throw)", &menu.config.controls.legacy_flag_throw) // jump and crouch together throw the flag
+	ui.toggle(k, "Prone once per press (hold doesn't get back up)", &menu.config.controls.prone_press)
 	ui.toggle(k, "Prioritize weapons menu over radio", &menu.config.radio.weapons_first) // both open, the number keys pick a weapon
 	ui.toggle(k, "Auto close radio when weapons menu opens", &menu.config.radio.close_on_weapons)
 }
