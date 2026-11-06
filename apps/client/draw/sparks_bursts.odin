@@ -243,7 +243,10 @@ spawn_spark :: proc(sparks: ^Sparks, game: ^sim.Game, respawn: sim.Respawn) {
 }
 
 // From each foot, back along the shin, a flame in the jet's colour now and then, and
-// smoke now and then (SpriteEffects.pas JetEffects).
+// smoke now and then (SpriteEffects.pas JetEffects). From the foot where it was a tick
+// ago: Soldat lights the jets in the soldier's controls, before the tick rebuilds its
+// skeleton, so a soldier flying fast (lying flat, most of all) leaves its flames a tick's
+// flight behind its feet, not on them.
 @(private = "file")
 jets_burn :: proc(sparks: ^Sparks, game: ^sim.Game) {
 	// each foot, and the leg it flames back along: from its knee up to its hip
@@ -253,10 +256,11 @@ jets_burn :: proc(sparks: ^Sparks, game: ^sim.Game) {
 	for &soldier, id in game.world.soldiers {
 		if !soldier.active || soldier.vitals.dead || !soldier_jetting(&soldier) do continue
 		joints := drawn_pose(sparks, game, id)
+		behind := soldier.body.velocity / sim.SOLDIER_DAMPING // the tick's flight, as its speed was before the air took of it
 		jet := soldier.player.look.jet
 		jet.a = 255
 		for leg in legs {
-			at := joints[leg.foot - 1] + {-1, 3}
+			at := joints[leg.foot - 1] - behind + {-1, 3}
 			back := utils.normalize(joints[leg.hip - 1] - joints[leg.knee - 1]) * -0.5
 			if below(sparks, 8) == 0 do spark_add(sparks, .Smoke, at, soldier.body.velocity, 75)
 			if below(sparks, 7) == 0 do spark_add(sparks, .Jet_Fire, at, back, 40, jet)
