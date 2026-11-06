@@ -121,7 +121,8 @@ hud_data :: proc(match: ^Match, config: ^res.Client_Config) -> (data: hud.Hud_Da
 		data.weapon_names[weapon] = info.name
 		data.weapon_stats[weapon] = info.stats
 	}
-	data.weapon_soldat = sim.SOLDAT_WEAPONS
+	// Soldat's, made as the game's are (the thrown knife follows the knife), so only what a server changed differs
+	for info, weapon in sim.weapons_default() do data.weapon_soldat[weapon] = info.stats
 
 	data.camera = match.seen.pos
 	data.view = match.seen.view
