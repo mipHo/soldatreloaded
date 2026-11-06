@@ -2,6 +2,8 @@ package hud
 
 import sa "core:container/small_array"
 import "core:fmt"
+import "core:math"
+import "core:strings"
 
 import rl "vendor:raylib"
 
@@ -104,6 +106,15 @@ draw_menus :: proc(u: ^ui.Ui, art: ^Art, menus: ^Menus, data: ^Hud_Data, dim: bo
 			}
 			write(u, weapon_caption(data, i), at, SMALL_FONT, color)
 		}
+		// a server's own weapons (RenderWeaponMenuText): said so over the menu, and the one
+		// under the cursor's numbers that are not Soldat's, beside it
+		if data.weapon_stats != data.weapon_soldat {
+			label :: "Weapons Mod"
+			write(u, label, {45 + 252 - text_width(u, label, SMALL_FONT), 139}, SMALL_FONT, {204, 94, 94, 205})
+			if hot_menu == .Weapons && hot >= 0 && hot < len(sa.slice(&buttons)) {
+				draw_weapon_changes(u, data, hot, sa.get(buttons, hot).rect, sa.get(buttons, min(PRIMARIES - 1, hot)).rect)
+			}
+		}
 	}
 
 	if .Escape in menus.open {
@@ -187,4 +198,70 @@ weapon_caption :: proc(data: ^Hud_Data, button: int) -> string {
 weapon_chosen :: proc(data: ^Hud_Data, button: int) -> bool {
 	weapon := res.Weapon(button + 1)
 	return weapon == data.loadout.primary if button < PRIMARIES else weapon == data.loadout.secondary
+}
+
+// One of a weapon's numbers, as the weapons menu sets a server's beside Soldat's.
+@(private = "file")
+Weapon_Number :: struct {
+	name:    string,
+	now, as: f32, // as the game plays by it, and as Soldat has it
+}
+
+// The weapon's numbers the menu compares, in the original's order (GetWeaponAttribs): the
+// damage is the hit's strength over the three parts' modifiers.
+@(private = "file")
+weapon_numbers :: proc(now, as: res.Weapon_Stats) -> [11]Weapon_Number {
+	damage :: proc(s: res.Weapon_Stats) -> f32 {
+		return s.damage * (s.leg_modifier + s.chest_modifier + s.head_modifier) / 3
+	}
+	return {
+		{"Damage", damage(now), damage(as)},
+		{"Ammo", f32(now.ammo), f32(as.ammo)},
+		{"Reload", f32(now.reload_time), f32(as.reload_time)},
+		{"Speed", now.speed, as.speed},
+		{"Rate", f32(now.fire_interval), f32(as.fire_interval)},
+		{"Acc.", now.movement_accuracy, as.movement_accuracy},
+		{"Bink", f32(now.bink), f32(as.bink)},
+		{"Delay", f32(now.start_up_time), f32(as.start_up_time)},
+		{"Spread", now.bullet_spread, as.bullet_spread},
+		{"Push", now.push, as.push},
+		{"Inh. Speed", now.inherited_velocity, as.inherited_velocity},
+	}
+}
+
+// Beside the weapons menu, the weapon under the cursor and each of its numbers a server
+// has changed: how much of Soldat's it is, then the two (RenderWeaponMenuText). `button`
+// is the weapon's, at `rect`; the list starts level with it, no lower than the last
+// primary's (`top`), so a secondary's doesn't run off the view.
+@(private = "file")
+draw_weapon_changes :: proc(u: ^ui.Ui, data: ^Hud_Data, button: int, rect, top: rl.Rectangle) {
+	COLOR :: rl.Color{215, 215, 155, 230}
+	weapon := res.Weapon(button + 1)
+	x := rect.x + 245
+	y := top.y + top.height / 2 - 16
+	step := line_height(u, WEAPONS_FONT)
+	write(u, weapon_caption(data, button), {x, y}, WEAPONS_FONT, COLOR)
+	y += step
+	changed := false
+	for number in weapon_numbers(data.weapon_stats[weapon], data.weapon_soldat[weapon]) {
+		if number.now == number.as do continue
+		if !changed {
+			write(u, "   Settings : change% (present/default)", {x, y}, WEAPONS_FONT, COLOR)
+			y += step
+			changed = true
+		}
+		share := fmt.tprintf("%d%%", int(math.round(number.now / number.as * 100))) if number.as != 0 else "NEW"
+		line := fmt.tprintf("    |-%s : %s (%s/%s)", number.name, share, weapon_number_said(number.now), weapon_number_said(number.as))
+		write(u, line, {x, y}, WEAPONS_FONT, COLOR)
+		y += step
+	}
+	if !changed do write(u, "   as Soldat's", {x, y}, WEAPONS_FONT, COLOR)
+}
+
+// A number to four places at most, with no noughts after it: 1.1, 0.0125, 30.
+@(private = "file")
+weapon_number_said :: proc(n: f32) -> string {
+	said := fmt.tprintf("%.4f", n)
+	said = strings.trim_right(said, "0")
+	return strings.trim_suffix(said, ".")
 }

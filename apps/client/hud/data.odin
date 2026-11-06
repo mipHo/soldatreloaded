@@ -28,6 +28,8 @@ Hud_Data :: struct {
 	mine:         Mine,
 	loadout:      sim.Loadout, // what the weapons menu has chosen for my next spawn
 	weapon_names: [res.Weapon]string,
+	weapon_stats: res.Weapon_Table, // every weapon's numbers as this game plays by them, and as Soldat has them: the weapons menu says where a server's differ
+	weapon_soldat: res.Weapon_Table,
 
 	// the view
 	camera:       [2]f32, // the view's middle, in the world

@@ -117,7 +117,11 @@ hud_data :: proc(match: ^Match, config: ^res.Client_Config) -> (data: hud.Hud_Da
 	me := &world.soldiers[match.me]
 	data.mine = mine(game, &world.soldiers[point_of_view(match)]) // the bars are the watched player's in a demo, not the recorder's
 	data.loadout = me.loadout
-	for info, weapon in game.resources.weapons do data.weapon_names[weapon] = info.name
+	for info, weapon in game.resources.weapons {
+		data.weapon_names[weapon] = info.name
+		data.weapon_stats[weapon] = info.stats
+	}
+	data.weapon_soldat = sim.SOLDAT_WEAPONS
 
 	data.camera = match.seen.pos
 	data.view = match.seen.view
