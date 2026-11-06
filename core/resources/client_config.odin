@@ -443,7 +443,7 @@ DEFAULT_CLIENT_CONFIG := Client_Config {
 		discord         = true,
 	},
 	sound = {volume = 50, levels = SOUND_LEVELS_DEFAULT},
-	demos = {clip_seconds = 30},
+	demos = {clip_seconds = 15},
 	network = {server = "127.0.0.1:23073", lobby = LOBBY_URL, mods_index = MODS_INDEX_URL, smooth = 100},
 	offline = {time_limit = 15, capture_limit = 10, respawn_time = 2, max_grenades = 2, aimbot_miss_chance = 5, bots = {difficulty = 100, chat = true}},
 	radio = {
