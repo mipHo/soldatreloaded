@@ -350,8 +350,9 @@ text_row :: proc(k: ^Kit, label: string, value: ^string, max: int, placeholder: 
 // Colour
 
 // A colour: its hex in a box, typed, and its swatch, which opens the picker (as Enter
-// does).
-color_row :: proc(k: ^Kit, label: string, ref: Color_Ref) {
+// does). With `original`, the colour the game comes with, the picker has a Default to go
+// back to it by.
+color_row :: proc(k: ^Kit, label: string, ref: Color_Ref, original: Maybe(utils.Rgba) = nil) {
 	r := row(k, ROW_H, true)
 	cw, cx, cy := ctrl_w(r), ctrl_x(r), ctrl_y(r)
 	sx := cx + cw - CTRL_H
@@ -362,7 +363,7 @@ color_row :: proc(k: ^Kit, label: string, ref: Color_Ref) {
 		if open {
 			popup_close(k)
 		} else {
-			popup_open_color(k, r.id, ref, sx, cy)
+			popup_open_color(k, r.id, ref, sx, cy, original)
 		}
 	}
 	if !r.shown do return
@@ -371,6 +372,7 @@ color_row :: proc(k: ^Kit, label: string, ref: Color_Ref) {
 	hex := utils.format_hex_color(utils.Rgba(color)) if set else ""
 	if typed, changed := field_box(k, r.id, false, cx, cy, cw - CTRL_H - 6, color_key(ref), hex, 6, "none", false); changed {
 		if parsed, ok := utils.parse_hex_color(typed); ok {
+			if before, was_set := color_get(ref); was_set do recent_add(before) // to go back to
 			color_set(ref, rl.Color(parsed))
 		} else if typed == "" {
 			color_clear(ref)

@@ -29,6 +29,7 @@ Popup :: struct {
 	names:     [POPUP_ITEMS]utils.Short_String(40),
 	locked:    [POPUP_ITEMS]bool,
 	color:     Color_Ref, // a picker's colour
+	original:  Maybe(utils.Rgba), // the colour the game comes with, for a colour always set: its Default
 	hue:       f32, // a picker's colour as it is being set: kept, so a grey keeps its hue
 	sat, val:  f32,
 	drag:      Picker_Drag,

@@ -44,6 +44,34 @@ PICK_SWATCH_H :: 16
 PICK_SWATCH_GAP :: 3
 PICK_CLEAR :: 24
 
+// The colours last had, newest first, a row of them under the swatches: the one a picker
+// opened on is kept, so the colour just replaced, and those before it, are a click away.
+// For as long as the game runs.
+RECENT_MAX :: SWATCH_COLS
+@(private = "file") recent: [RECENT_MAX]rl.Color
+@(private = "file") recent_count: int
+
+@(private = "package")
+recent_add :: proc(color: rl.Color) {
+	at := recent_count
+	for i in 0 ..< recent_count {
+		if same_rgb(recent[i], color) {
+			at = i
+			break
+		}
+	}
+	at = min(at, RECENT_MAX - 1)
+	for i := at; i > 0; i -= 1 do recent[i] = recent[i - 1] // the rest a place on, the oldest out
+	recent[0] = {color.r, color.g, color.b, 255}
+	recent_count = min(max(recent_count, at + 1), RECENT_MAX)
+}
+
+// The rows of swatches: the two to start from, and the colours last had if there are any.
+@(private = "file")
+swatch_rows :: proc() -> f32 {
+	return 3 if recent_count > 0 else 2
+}
+
 // The colour, and whether there is one.
 color_get :: proc(ref: Color_Ref) -> (color: rl.Color, set: bool) {
 	switch c in ref {
@@ -83,11 +111,12 @@ color_key :: proc(ref: Color_Ref) -> rawptr {
 }
 
 @(private = "package")
-popup_open_color :: proc(k: ^Kit, owner: int, ref: Color_Ref, x, y: f32) {
+popup_open_color :: proc(k: ^Kit, owner: int, ref: Color_Ref, x, y: f32, original: Maybe(utils.Rgba) = nil) {
 	p := &k.popup
-	p^ = {kind = .Color, owner = owner, hover = -1, color = ref}
+	if color, set := color_get(ref); set do recent_add(color) // the colour it opens on, to go back to
+	p^ = {kind = .Color, owner = owner, hover = -1, color = ref, original = original}
 	p.w = PICK_PAD + PICK_SQUARE_W + PICK_PAD + PICK_HUE_W + PICK_PAD
-	p.h = PICK_HEAD + PICK_SQUARE_H + PICK_PAD + 2 * PICK_SWATCH_H + PICK_SWATCH_GAP + PICK_PAD + (PICK_CLEAR if color_clearable(ref) else 0) + 4
+	p.h = PICK_HEAD + PICK_SQUARE_H + PICK_PAD + swatch_rows() * (PICK_SWATCH_H + PICK_SWATCH_GAP) - PICK_SWATCH_GAP + PICK_PAD + (PICK_CLEAR if picker_resets(p) else 0) + 4
 	p.val = 1
 	if color, set := color_get(ref); set do rgb_to_hsv(color, &p.hue, &p.sat, &p.val)
 	popup_place(k, x + 20 - p.w, y, CTRL_H)
@@ -106,7 +135,7 @@ parts_of :: proc(p: ^Popup) -> (k: Parts) {
 	k.hue_x = k.sq_x + PICK_SQUARE_W + PICK_PAD
 	k.sw_y = k.sq_y + PICK_SQUARE_H + PICK_PAD
 	k.sw_w = (p.w - 2 * PICK_PAD - (SWATCH_COLS - 1) * PICK_SWATCH_GAP) / SWATCH_COLS
-	k.clear_y = k.sw_y + 2 * PICK_SWATCH_H + PICK_SWATCH_GAP + PICK_PAD
+	k.clear_y = k.sw_y + swatch_rows() * (PICK_SWATCH_H + PICK_SWATCH_GAP) - PICK_SWATCH_GAP + PICK_PAD
 	return
 }
 
@@ -118,7 +147,8 @@ swatch_at :: proc(parts: Parts, i: int) -> rl.Vector2 {
 	}
 }
 
-// The swatch under `c`, len(SWATCHES) for None, -1 for neither.
+// The swatch under `c`, len(SWATCHES) for None or Default, past it the colours last had,
+// -1 for none of them.
 @(private = "file")
 picker_item_at :: proc(p: ^Popup, c: rl.Vector2) -> int {
 	parts := parts_of(p)
@@ -126,8 +156,19 @@ picker_item_at :: proc(p: ^Popup, c: rl.Vector2) -> int {
 		at := swatch_at(parts, i)
 		if inside(c, at.x, at.y, parts.sw_w, PICK_SWATCH_H) do return i
 	}
-	if color_clearable(p.color) && inside(c, parts.sq_x, parts.clear_y, p.w - 2 * PICK_PAD, PICK_CLEAR - 4) do return len(SWATCHES)
+	if picker_resets(p) && inside(c, parts.sq_x, parts.clear_y, p.w - 2 * PICK_PAD, PICK_CLEAR - 4) do return len(SWATCHES)
+	for i in 0 ..< recent_count {
+		at := swatch_at(parts, len(SWATCHES) + i) // the row after the swatches'
+		if inside(c, at.x, at.y, parts.sw_w, PICK_SWATCH_H) do return len(SWATCHES) + 1 + i
+	}
 	return -1
+}
+
+// Whether the picker has its button under the swatches: None, for a colour that may be
+// none; Default, for one always set whose colour the game comes with is known.
+@(private = "file")
+picker_resets :: proc(p: ^Popup) -> bool {
+	return color_clearable(p.color) || p.original != nil
 }
 
 @(private = "package")
@@ -167,9 +208,17 @@ picker_input :: proc(k: ^Kit) {
 			rgb_to_hsv(SWATCHES[p.hover], &p.hue, &p.sat, &p.val)
 			color_set(p.color, SWATCHES[p.hover])
 		} else if p.hover == len(SWATCHES) {
-			color_clear(p.color)
+			if original, known := p.original.?; known && !color_clearable(p.color) {
+				color_set(p.color, rl.Color(original))
+			} else {
+				color_clear(p.color)
+			}
 			popup_close(k)
 			return
+		} else if p.hover > len(SWATCHES) {
+			again := recent[p.hover - len(SWATCHES) - 1]
+			rgb_to_hsv(again, &p.hue, &p.sat, &p.val)
+			color_set(p.color, again)
 		}
 	}
 	if !k.held do p.drag = .None
@@ -237,10 +286,21 @@ picker_draw :: proc(k: ^Kit) {
 		}
 		rrect(ui, at.x, at.y, parts.sw_w, PICK_SWATCH_H, 3, swatch)
 	}
-	if color_clearable(p.color) {
+	for i in 0 ..< recent_count { // the colours last had
+		at := swatch_at(parts, len(SWATCHES) + i)
+		current := !unset && same_rgb(recent[i], now)
+		if current || p.hover == len(SWATCHES) + 1 + i {
+			rrect(ui, at.x - 1.5, at.y - 1.5, parts.sw_w + 3, PICK_SWATCH_H + 3, 4, TEXT if current else {255, 255, 255, 90})
+		}
+		rrect(ui, at.x, at.y, parts.sw_w, PICK_SWATCH_H, 3, recent[i])
+	}
+	if picker_resets(p) {
 		hot := p.hover == len(SWATCHES)
 		box(ui, parts.sq_x, parts.clear_y, p.w - 2 * PICK_PAD, PICK_CLEAR - 4, CONTROL_HOT if hot else CONTROL, BORDER)
 		label := "None (the art's own)  *" if unset else "None (the art's own)"
+		if original, known := p.original.?; known && !color_clearable(p.color) {
+			label = "Default  *" if same_rgb(rl.Color(original), now) else "Default"
+		}
 		text_mid(k, BODY, label, parts.sq_x + 8, parts.clear_y + (PICK_CLEAR - 4) / 2, TEXT if hot else MUTED)
 	}
 }
