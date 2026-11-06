@@ -133,3 +133,23 @@ printable :: proc(s: string) -> bool {
 	for c in transmute([]u8)s do if c < 0x21 || c > 0x7E do return false
 	return true
 }
+
+// -joinurl <server>: the same join asked on the command line, as Soldat takes it, the
+// server as it is copied from anywhere: host[:port][/password], bare or after soldat://
+// (or a link of ours whole). The join link it makes, for link_target to judge as any; false
+// if `args` has no -joinurl with a server after it.
+link_of_joinurl :: proc(args: []string) -> (link: string, ok: bool) {
+	for arg, i in args {
+		if !strings.equal_fold(arg, "-joinurl") || i + 1 >= len(args) do continue
+		server := strings.trim_space(args[i + 1])
+		if link_is(server) do return server, true
+		if at := strings.index(server, "://"); at >= 0 do server = server[at + 3:]
+		server = strings.trim_prefix(server, "join/")
+		if server == "" do return
+		// a link's own escapes are undone as it is read: a % or a + here is the password's own
+		escaped, _ := strings.replace_all(server, "%", "%25", context.temp_allocator)
+		escaped, _ = strings.replace_all(escaped, "+", "%2B", context.temp_allocator)
+		return strings.concatenate({LINK_SCHEME, "://join/", escaped}, context.temp_allocator), true
+	}
+	return
+}

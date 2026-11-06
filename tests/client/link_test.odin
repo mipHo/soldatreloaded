@@ -57,3 +57,31 @@ link_handler_files :: proc(t: ^testing.T) {
 	testing.expect_value(t, online.link_mimeapps(got), got) // made again, the same
 	testing.expect(t, strings.contains(online.link_mimeapps("[Added Associations]\na=b\n"), "[Default Applications]\n" + LINE), "the section made")
 }
+
+// -joinurl and a server, as it is copied from anywhere, joins as its link would.
+@(test)
+joinurl_argument :: proc(t: ^testing.T) {
+	Case :: struct {
+		args:   []string,
+		target: string, // "" for none, or refused
+	}
+	cases := [?]Case {
+		{{"-joinurl", "149.248.193.40:23073/secret"}, "149.248.193.40:23073/secret"},
+		{{"-JoinURL", "soldat://149.248.193.40:23073/secret"}, "149.248.193.40:23073/secret"}, // as Soldat's links are
+		{{"-windowed", "-joinurl", "play.example.com"}, "play.example.com"},
+		{{"-joinurl", "1.2.3.4:23073/a+b%c"}, "1.2.3.4:23073/a+b%c"}, // the password as it is, not a link's escapes
+		{{"-joinurl", "soldatreloaded://join/1.2.3.4:23073/se%2Fcret"}, "1.2.3.4:23073/se/cret"},
+		{{"-joinurl", "1.2.3.4:70000"}, ""},
+		{{"-joinurl"}, ""},
+		{{"1.2.3.4:23073"}, ""},
+	}
+	for c in cases {
+		link, asked := online.link_of_joinurl(c.args)
+		target, ok := online.link_target(link)
+		if c.target == "" {
+			testing.expectf(t, !asked || !ok, "%v joins nothing, not %s", c.args, target)
+		} else {
+			testing.expectf(t, asked && ok && target == c.target, "%v joins %s, not %s", c.args, c.target, target)
+		}
+	}
+}

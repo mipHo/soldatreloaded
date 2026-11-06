@@ -153,10 +153,11 @@ main :: proc() {
 // ---------------------------------------------------------------------------------
 // Starting
 
-// The join link the game was started with, as its argument; none for a start of any other
-// kind.
+// The join link the game was started with, as its argument, or made of a -joinurl and
+// the server after it; none for a start of any other kind.
 link_arg :: proc() -> (link: string, ok: bool) {
 	for arg in os.args[1:] do if online.link_is(arg) do return arg, true
+	if joined, asked := online.link_of_joinurl(os.args[1:]); asked do return strings.clone(joined), true // -joinurl host:port/password
 	return
 }
 
