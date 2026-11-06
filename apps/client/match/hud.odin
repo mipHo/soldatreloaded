@@ -73,7 +73,7 @@ hud_data :: proc(match: ^Match, config: ^res.Client_Config) -> (data: hud.Hud_Da
 	settings := &game.settings
 
 	data.time_left = round.time_left / sim.TICK_RATE
-	data.time_of_day = time_of_day(match.zone)
+	data.time_of_day = time_of_day(match.zone, match.config.interface.clock_24h)
 	data.limit = settings.capture_limit
 	data.captures = round.captures
 	for &home in data.flags_home do home = true
@@ -458,14 +458,16 @@ flag_team :: proc(kind: sim.Thing_Kind) -> res.Team {
 }
 
 // The time of day in `zone`, as the original's scoreboard has it ('h:nn:ss ampm'): the
-// hour without its 0, and AM or PM. For this frame.
+// hour without its 0, and AM or PM; or, `hours_24` (interface.clock_24h), on a 24-hour
+// clock, 17:05:09. For this frame.
 @(private = "package")
-time_of_day :: proc(zone: ^datetime.TZ_Region) -> string {
+time_of_day :: proc(zone: ^datetime.TZ_Region, hours_24: bool) -> string {
 	at, ok := time.time_to_datetime(time.now())
 	if !ok do return ""
 	if zone != nil {
 		if shifted, shifted_ok := timezone.datetime_to_tz(at, zone); shifted_ok do at = shifted
 	}
+	if hours_24 do return fmt.tprintf("%02d:%02d:%02d", at.hour, at.minute, at.second)
 	hour := at.hour % 12
 	if hour == 0 do hour = 12
 	return fmt.tprintf("%d:%02d:%02d %s", hour, at.minute, at.second, "PM" if at.hour >= 12 else "AM")

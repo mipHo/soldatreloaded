@@ -87,6 +87,7 @@ tab_interface :: proc(menu: ^Menu) {
 	ui.toggle(k, "Mute from scoreboard", &config.interface.scoreboard_mute)
 	ui.enum_select(k, "Show time left", &config.interface.time_left_position, TIME_LEFT_PLACES[:])
 	ui.toggle(k, "Show local time", &config.interface.local_time)
+	ui.toggle(k, "24-hour clock", &config.interface.clock_24h)
 	ui.color_row(k, "Time colour", &config.interface.time_color, res.DEFAULT_CLIENT_CONFIG.interface.time_color)
 	ui.toggle(k, "Show FPS", &config.interface.show_fps)
 	ui.toggle(k, "Show ping", &config.interface.show_ping)

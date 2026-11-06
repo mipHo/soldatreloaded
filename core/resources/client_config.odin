@@ -183,6 +183,7 @@ Interface_Settings :: struct {
 	minimap:            bool `jsoncomment:"the minimap"`,
 	time_left_position: Time_Left_Position `jsoncomment:"the time left in the round, and where: none, top_center, top_right (in a row left of the frame rate and the line's numbers), or both"`,
 	local_time:         bool `jsoncomment:"your local time, in the top right, in a row left of the frame rate and the line's numbers"`,
+	clock_24h:          bool `jsoncomment:"the time of day on a 24-hour clock (17:05:09), wherever it shows: the scoreboard, the top right, a taunt's {time}. Off, 5:05:09 PM"`,
 	time_color:         utils.Rgba `jsoncomment:"the time left's colour, and the local time's, RRGGBB"`,
 	show_fps:           bool `jsoncomment:"the frame rate, in the top right"`,
 	show_ping:          bool `jsoncomment:"your ping, under it"`,

@@ -86,7 +86,7 @@ taunt_var :: proc(match: ^Match, name: string) -> (value: string, known: bool) {
 		for &soldier in world.soldiers do count += int(soldier.active)
 		return fmt.tprintf("%d", count), true
 	case "ping":       return fmt.tprintf("%d", me.player.ping), true
-	case "time":       return time_of_day(match.zone), true
+	case "time":       return time_of_day(match.zone, match.config.interface.clock_24h), true
 	}
 	return "", false
 

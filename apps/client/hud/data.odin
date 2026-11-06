@@ -13,7 +13,7 @@ import res "../../../core/resources"
 Hud_Data :: struct {
 	// the round
 	time_left:    i32,  // seconds
-	time_of_day:  string, // the local clock, h:mm:ss AM, as the scoreboard shows it under the time left
+	time_of_day:  string, // the local clock, h:mm:ss AM or on 24 hours, as the scoreboard shows it under the time left
 	limit:        i32,  // the captures that win
 	captures:     [res.Team]i32,
 	flags_home:   [res.Team]bool, // each team's flag at its base, and nobody's
