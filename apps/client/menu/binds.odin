@@ -57,16 +57,19 @@ bind :: proc(menu: ^Menu, key, command: string) {
 // line can't carry: `"` ends a quoted word, `;` ends a command, and `//` comments the
 // rest of the line away (it becomes a space).
 
-TAUNT_SLOTS :: 36
+TAUNT_SLOTS :: 39
+TAUNT_KEY_SLOTS :: 36 // the keyboard's; the rest are the mouse's buttons
 
 // The taunt keys, as the editor's keyboard shows them: the number row, then the qwerty
-// rows, the original's Alt+1..0 and Alt+Q..P.
+// rows, the original's Alt+1..0 and Alt+Q..P; then the mouse's buttons past the two that
+// fire and fly, which are pressed alone, with no modifier: a taunt on the middle button.
 @(rodata)
 TAUNT_SLOT_KEYS := [TAUNT_SLOTS]string {
 	"1", "2", "3", "4", "5", "6", "7", "8", "9", "0",
 	"q", "w", "e", "r", "t", "y", "u", "i", "o", "p",
 	"a", "s", "d", "f", "g", "h", "j", "k", "l",
 	"z", "x", "c", "v", "b", "n", "m",
+	"mouse3", "mouse4", "mouse5",
 }
 
 Taunt_Modifier :: enum {
@@ -120,8 +123,15 @@ Taunt :: struct {
 	emote:    int,    // Emote's, its place in EMOTES
 }
 
-// The bind's key for a slot and a modifier: "alt+q".
+// Whether the slot is a mouse button's, pressed alone.
+taunt_plain :: proc(slot: int) -> bool {
+	return slot >= TAUNT_KEY_SLOTS
+}
+
+// The bind's key for a slot and a modifier: "alt+q"; a mouse button's is its own name,
+// whatever the modifier.
 taunt_combo :: proc(slot: int, modifier: Taunt_Modifier) -> string {
+	if taunt_plain(slot) do return TAUNT_SLOT_KEYS[slot]
 	return fmt.tprintf("%s+%s", TAUNT_MODIFIER_KEYS[modifier], TAUNT_SLOT_KEYS[slot])
 }
 
@@ -230,6 +240,10 @@ clean_message :: proc(text: string) -> string {
 // The slot's `modifier` combo bound to `text` ("" unbinds it), the slot's other combos
 // unbound, so the slot holds this one taunt.
 taunt_set :: proc(menu: ^Menu, slot: int, modifier: Taunt_Modifier, text: string) {
+	if taunt_plain(slot) {
+		bind(menu, TAUNT_SLOT_KEYS[slot], text)
+		return
+	}
 	for m in Taunt_Modifier do bind(menu, taunt_combo(slot, m), text if m == modifier else "")
 }
 

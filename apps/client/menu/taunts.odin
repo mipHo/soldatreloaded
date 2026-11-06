@@ -35,9 +35,9 @@ CHAT_TARGET_NAMES := [?]string{"Everyone", "Team"}
 
 // The keyboard's rows: where each begins in the slots, and how many keys it has.
 @(rodata)
-KEY_ROW_FIRST := [4]int{0, 10, 20, 29}
+KEY_ROW_FIRST := [5]int{0, 10, 20, 29, 36}
 @(rodata)
-KEY_ROW_COUNT := [4]int{10, 10, 9, 7}
+KEY_ROW_COUNT := [5]int{10, 10, 9, 7, 3}
 
 page_taunts :: proc(menu: ^Menu) {
 	k := &menu.kit
@@ -57,8 +57,8 @@ page_taunts :: proc(menu: ^Menu) {
 			ui.text_fit(k, ui.BODY, "Pick a key above, then set what it does below. It binds as you go — nothing to save.", r.x + 10, r.y + r.h / 2, r.w - 20, ui.MUTED)
 		}
 	} else {
-		combo := fmt.tprintf("%s + %s", TAUNT_MODIFIER_NAMES[editor.modifier], strings.to_upper(TAUNT_SLOT_KEYS[editor.slot], context.temp_allocator))
-		ui.section(k, combo)
+		ui.section(k, taunt_title(editor.slot, editor.modifier, " + "))
+		taunt_other_bind(menu)
 		taunt_line(menu)
 		taunt_vars(menu)
 		if r := ui.row(k, ui.ROW_H, true); r.shown {
@@ -86,7 +86,7 @@ taunt_list :: proc(menu: ^Menu) {
 		r := ui.row(k, ui.ROW_H, true)
 		if (r.shown && ui.take(k, r.id, r.x, r.y, r.w, r.h)) || ui.take_enter(k, r.focused) do taunt_load(menu, slot)
 		if !r.shown do continue
-		combo := fmt.tprintf("%s+%s", TAUNT_MODIFIER_NAMES[taunt.modifier], strings.to_upper(TAUNT_SLOT_KEYS[slot], context.temp_allocator))
+		combo := taunt_title(slot, taunt.modifier, "+")
 		kind, words := taunt_summary(menu, taunt)
 		cy, cx := r.y + r.h / 2, r.x + 10
 		cw := min(ui.width_of(u, ui.BOLD, combo), 84)
@@ -248,8 +248,8 @@ taunt_var_add :: proc(menu: ^Menu, token: string) {
 	taunt_apply(menu)
 }
 
-// The 36 keys, the number row then the qwerty rows: a bound key tinted, the picked one
-// lit; clicking or Enter picks it into the editor.
+// The 36 keys, the number row then the qwerty rows, and under them the mouse's buttons:
+// a bound one tinted, the picked one lit; clicking or Enter picks it into the editor.
 @(private = "file")
 taunt_keyboard :: proc(menu: ^Menu) {
 	k := &menu.kit
@@ -257,10 +257,11 @@ taunt_keyboard :: proc(menu: ^Menu) {
 	editor := &menu.taunts
 	KEY_GAP :: 5
 	KH :: 24
-	kw := min(34, (k.w - 9 * KEY_GAP) / 10)
-	for row_i in 0 ..< 4 {
+	key_w := min(34, (k.w - 9 * KEY_GAP) / 10)
+	for row_i in 0 ..< len(KEY_ROW_FIRST) {
 		r := ui.row(k, KH + 6, false)
 		count := KEY_ROW_COUNT[row_i]
+		kw := key_w if !taunt_plain(KEY_ROW_FIRST[row_i]) else 2 * key_w + KEY_GAP // a mouse button's name is longer
 		row_w := f32(count) * kw + f32(count - 1) * KEY_GAP
 		kx := r.x + (r.w - row_w) / 2
 		for key in 0 ..< count {
@@ -276,7 +277,7 @@ taunt_keyboard :: proc(menu: ^Menu) {
 				fill := ui.ACCENT_SOFT if selected else {232, 80, 30, 22} if bound else ui.CONTROL_HOT if hot else ui.CONTROL
 				edge := ui.ACCENT if selected else ui.with_alpha(ui.ACCENT, 140) if bound else ui.BORDER
 				ui.box(u, kx, r.y, kw, KH, fill, edge)
-				ui.text_mid(k, ui.BOLD, strings.to_upper(TAUNT_SLOT_KEYS[slot], context.temp_allocator), kx + kw / 2, r.y + KH / 2, ui.TEXT if bound || selected else ui.MUTED)
+				ui.text_mid(k, ui.BOLD, taunt_key_title(slot), kx + kw / 2, r.y + KH / 2, ui.TEXT if bound || selected else ui.MUTED)
 			}
 			kx += kw + KEY_GAP
 		}
@@ -343,7 +344,7 @@ taunt_clear :: proc(menu: ^Menu) {
 @(private = "file")
 taunts_set_modifier :: proc(menu: ^Menu, new: Taunt_Modifier) {
 	if new == menu.taunts.modifier do return
-	for slot in 0 ..< TAUNT_SLOTS {
+	for slot in 0 ..< TAUNT_KEY_SLOTS { // the mouse's buttons are held with none
 		if taunt, found := taunt_at(menu.config, slot); found {
 			taunt_set(menu, slot, new, taunt_compose(taunt.mode, taunt.text, taunt.radio, taunt.emote))
 		}
@@ -354,7 +355,7 @@ taunts_set_modifier :: proc(menu: ^Menu, new: Taunt_Modifier) {
 // The modifier the taunts are on, for the editor to open at: the first found taunt's, or
 // Alt when there are none.
 taunts_modifier :: proc(config: ^res.Client_Config) -> Taunt_Modifier {
-	for slot in 0 ..< TAUNT_SLOTS {
+	for slot in 0 ..< TAUNT_KEY_SLOTS {
 		if taunt, found := taunt_at(config, slot); found do return taunt.modifier
 	}
 	return .Alt
@@ -378,4 +379,34 @@ radio_words :: proc(menu: ^Menu, radio: int) -> string {
 @(private = "file")
 cut :: proc(text: string, n: int) -> string {
 	return text[:min(len(text), n)]
+}
+
+// A slot's key as the keyboard shows it: "Q", "MOUSE 3".
+@(private = "file")
+taunt_key_title :: proc(slot: int) -> string {
+	name := strings.to_upper(TAUNT_SLOT_KEYS[slot], context.temp_allocator)
+	if taunt_plain(slot) do return fmt.tprintf("%s %s", name[:len(name) - 1], name[len(name) - 1:])
+	return name
+}
+
+// A slot's combo as a heading and the list say it: "Alt + Q", and a mouse button alone.
+@(private = "file")
+taunt_title :: proc(slot: int, modifier: Taunt_Modifier, plus: string) -> string {
+	if taunt_plain(slot) do return taunt_key_title(slot)
+	return fmt.tprintf("%s%s%s", TAUNT_MODIFIER_NAMES[modifier], plus, taunt_key_title(slot))
+}
+
+// A line saying what else the picked mouse button does, if it is bound to something that
+// is no taunt (a control, on the controls page): a taunt set on it takes its place.
+@(private = "file")
+taunt_other_bind :: proc(menu: ^Menu) {
+	slot := menu.taunts.slot
+	if !taunt_plain(slot) do return
+	bound, is_bound := res.client_config_bind(menu.config, TAUNT_SLOT_KEYS[slot])
+	if _, is_taunt := taunt_at(menu.config, slot); !is_bound || bound == "" || is_taunt do return
+	k := &menu.kit
+	if r := ui.row(k, ui.ROW_H, false); r.shown {
+		note := fmt.tprintf("This button is bound to \"%s\" in the controls. A taunt set here takes its place.", bound)
+		ui.text_fit(k, ui.BODY, note, r.x + 10, r.y + r.h / 2, r.w - 20, ui.MUTED)
+	}
 }
