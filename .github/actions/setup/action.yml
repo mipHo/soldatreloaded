@@ -152,7 +152,8 @@ runs:
       run: |
         set -euo pipefail
         mkdir -p "$STATIC_LIBS/lib" && cd "$RUNNER_TEMP"
-        static=(-DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_LIBDIR=lib)
+        # (CMAKE_POLICY_VERSION_MINIMUM: ENet's CMakeLists asks for a CMake older than 3.5, which CMake 4 no longer configures as)
+        static=(-DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_LIBDIR=lib -DCMAKE_POLICY_VERSION_MINIMUM=3.5)
 
         git clone -q --depth 1 --branch "$ENET_TAG" https://github.com/lsalzman/enet.git
         test "$(git -C enet rev-parse HEAD)" = "$ENET_COMMIT"
